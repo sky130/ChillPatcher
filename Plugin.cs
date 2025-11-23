@@ -2,6 +2,7 @@ using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using ChillPatcher.Patches;
+using System;
 
 namespace ChillPatcher
 {
@@ -9,6 +10,8 @@ namespace ChillPatcher
     public class Plugin : BaseUnityPlugin
     {
         internal static new ManualLogSource Logger;
+        private float healthCheckTimer = 0f;
+        private const float healthCheckInterval = 5f; // 每5秒检查一次
 
         private void Awake()
         {
@@ -27,6 +30,25 @@ namespace ChillPatcher
             // 初始化全局键盘钩子（用于壁纸引擎模式）
             KeyboardHookPatch.Initialize();
             Logger.LogInfo("Keyboard hook initialized!");
+        }
+
+        // Unity Update方法 - 每帧调用,用于定期健康检查
+        private void Update()
+        {
+            try
+            {
+                healthCheckTimer += UnityEngine.Time.deltaTime;
+                
+                if (healthCheckTimer >= healthCheckInterval)
+                {
+                    healthCheckTimer = 0f;
+                    KeyboardHookPatch.HealthCheck();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Update健康检查异常(已隔离): {ex.Message}");
+            }
         }
 
         // Unity 生命周期方法 - 在应用退出时自动调用

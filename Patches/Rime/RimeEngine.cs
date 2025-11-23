@@ -101,53 +101,82 @@ namespace ChillPatcher.Rime
         public bool ProcessKey(int keyCode, int modifiers = 0)
         {
             if (!_initialized) return false;
-            return RimeApi.RimeProcessKey(_sessionId, keyCode, modifiers);
+            
+            try
+            {
+                return RimeApi.RimeProcessKey(_sessionId, keyCode, modifiers);
+            }
+            catch (AccessViolationException ex)
+            {
+                Plugin.Logger.LogError($"[Rime] ProcessKey内存访问异常: {ex.Message}");
+                _initialized = false; // 标记为未初始化,触发重启
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] ProcessKey异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
         }
 
         public RimeContextInfo GetContext()
         {
             if (!_initialized) return null;
 
-            // 初始化 context 结构体 (RIME_STRUCT_INIT)
-            var context = RimeApi.RimeContext.Create();
-            
-            if (!RimeApi.RimeGetContext(_sessionId, ref context))
-            {
-                return null; // 静默失败,避免每帧日志刷屏
-            }
-
             try
             {
-                var info = new RimeContextInfo
+                // 初始化 context 结构体 (RIME_STRUCT_INIT)
+                var context = RimeApi.RimeContext.Create();
+                
+                if (!RimeApi.RimeGetContext(_sessionId, ref context))
                 {
-                    // 手动 marshal IntPtr → string
-                    Preedit = context.Composition.Preedit != IntPtr.Zero 
-                        ? Marshal.PtrToStringAnsi(context.Composition.Preedit) ?? string.Empty 
-                        : string.Empty,
-                    CursorPos = context.Composition.CursorPos,
-                    HighlightedIndex = context.Menu.HighlightedCandidateIndex,
-                    Candidates = new List<CandidateInfo>()
-                };
-
-                var candidates = RimeApi.GetCandidates(
-                    context.Menu.Candidates,
-                    context.Menu.NumCandidates);
-
-                foreach (var candidate in candidates)
-                {
-                    info.Candidates.Add(new CandidateInfo
-                    {
-                        Text = candidate.Text ?? string.Empty,
-                        Comment = candidate.Comment ?? string.Empty
-                    });
+                    return null; // 静默失败,避免每帧日志刷屏
                 }
 
-                return info;
+                try
+                {
+                    var info = new RimeContextInfo
+                    {
+                        // 手动 marshal IntPtr → string
+                        Preedit = context.Composition.Preedit != IntPtr.Zero 
+                            ? Marshal.PtrToStringAnsi(context.Composition.Preedit) ?? string.Empty 
+                            : string.Empty,
+                        CursorPos = context.Composition.CursorPos,
+                        HighlightedIndex = context.Menu.HighlightedCandidateIndex,
+                        Candidates = new List<CandidateInfo>()
+                    };
+
+                    var candidates = RimeApi.GetCandidates(
+                        context.Menu.Candidates,
+                        context.Menu.NumCandidates);
+
+                    foreach (var candidate in candidates)
+                    {
+                        info.Candidates.Add(new CandidateInfo
+                        {
+                            Text = candidate.Text ?? string.Empty,
+                            Comment = candidate.Comment ?? string.Empty
+                        });
+                    }
+
+                    return info;
+                }
+                finally
+                {
+                    // 正确释放 context 内存
+                    RimeApi.RimeFreeContext(ref context);
+                }
             }
-            finally
+            catch (AccessViolationException ex)
             {
-                // 正确释放 context 内存
-                RimeApi.RimeFreeContext(ref context);
+                Plugin.Logger.LogError($"[Rime] GetContext内存访问异常: {ex.Message}");
+                _initialized = false; // 标记为未初始化,触发重启
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] GetContext异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                return null;
             }
         }
 
@@ -175,29 +204,51 @@ namespace ChillPatcher.Rime
         {
             if (!_initialized) return null;
 
-            var commit = RimeApi.RimeCommit.Create();
-            if (!RimeApi.RimeGetCommit(_sessionId, ref commit))
-                return null;
-
             try
             {
-                // 手动 marshal IntPtr → string
-                if (commit.Text == IntPtr.Zero)
+                var commit = RimeApi.RimeCommit.Create();
+                if (!RimeApi.RimeGetCommit(_sessionId, ref commit))
                     return null;
-                
-                return Marshal.PtrToStringAnsi(commit.Text);
+
+                try
+                {
+                    // 手动 marshal IntPtr → string
+                    if (commit.Text == IntPtr.Zero)
+                        return null;
+                    
+                    return Marshal.PtrToStringAnsi(commit.Text);
+                }
+                finally
+                {
+                    // 正确释放内存 (librime 用 new char[] 分配,用 delete[] 释放)
+                    RimeApi.RimeFreeCommit(ref commit);
+                }
             }
-            finally
+            catch (AccessViolationException ex)
             {
-                // 正确释放内存 (librime 用 new char[] 分配,用 delete[] 释放)
-                RimeApi.RimeFreeCommit(ref commit);
+                Plugin.Logger.LogError($"[Rime] GetCommit内存访问异常: {ex.Message}");
+                _initialized = false;
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] GetCommit异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                return null;
             }
         }
 
         public void ClearComposition()
         {
             if (!_initialized) return;
-            RimeApi.RimeClearComposition(_sessionId);
+            
+            try
+            {
+                RimeApi.RimeClearComposition(_sessionId);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] ClearComposition异常(已隔离): {ex.Message}");
+            }
         }
 
         public bool SelectCandidate(int index)

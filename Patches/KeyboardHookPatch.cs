@@ -20,9 +20,10 @@ namespace ChillPatcher.Patches
         private static IntPtr hookId = IntPtr.Zero;
         private static LowLevelKeyboardProc hookCallback;
         private static readonly Queue<char> inputQueue = new Queue<char>();
-        private static readonly Queue<string> commitQueue = new Queue<string>();
-        private static readonly Queue<uint> navigationKeyQueue = new Queue<uint>(); // 导航键队列(方向键/Delete等)
-        private static readonly object queueLock = new object();
+        internal static readonly Queue<string> commitQueue = new Queue<string>();
+        internal static readonly Queue<uint> navigationKeyQueue = new Queue<uint>(); // 导航键队列(方向键/Delete等)
+        internal static readonly Queue<char> inputQueue_internal = inputQueue;
+        internal static readonly object queueLock = new object();
         private static Thread hookThread;
         private static bool isRunning = false;
         
@@ -30,6 +31,14 @@ namespace ChillPatcher.Patches
         private static RimeEngine rimeEngine = null;
         private static bool useRime = false;
         private static bool _debugFirstKey = true;  // 调试标志
+        
+        // 崩溃保护和自动重启
+        private static int restartCount = 0;
+        private static readonly int maxRestartAttempts = 5;
+        private static DateTime lastRestartTime = DateTime.MinValue;
+        private static readonly TimeSpan restartCooldown = TimeSpan.FromSeconds(5);
+        private static DateTime lastHeartbeat = DateTime.Now;
+        private static readonly object restartLock = new object();
         
         // Windows API
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
@@ -148,7 +157,7 @@ namespace ChillPatcher.Patches
         }
 
         /// <summary>
-        /// 钩子线程过程
+        /// 钩子线程过程 - 带崩溃保护和自动重启
         /// </summary>
         private static void HookThreadProc()
         {
@@ -164,31 +173,45 @@ namespace ChillPatcher.Patches
                 if (hookId == IntPtr.Zero)
                 {
                     Plugin.Logger.LogError("[KeyboardHook] 钩子设置失败");
+                    TryRestartHookThread();
                     return;
                 }
 
                 Plugin.Logger.LogInfo("[KeyboardHook] 钩子设置成功，开始消息循环");
+                restartCount = 0; // 成功启动后重置计数器
 
                 // 非阻塞消息循环 - 使用 PeekMessage 替代 GetMessage
                 MSG msg;
                 while (isRunning)
                 {
-                    // 非阻塞地检查消息
-                    if (PeekMessage(out msg, IntPtr.Zero, 0, 0, PM_REMOVE))
+                    try
                     {
-                        if (msg.message == 0x0012) // WM_QUIT
-                        {
-                            Plugin.Logger.LogInfo("[KeyboardHook] 收到 WM_QUIT 消息");
-                            break;
-                        }
+                        // 更新心跳时间
+                        lastHeartbeat = DateTime.Now;
                         
-                        TranslateMessage(ref msg);
-                        DispatchMessage(ref msg);
+                        // 非阻塞地检查消息
+                        if (PeekMessage(out msg, IntPtr.Zero, 0, 0, PM_REMOVE))
+                        {
+                            if (msg.message == 0x0012) // WM_QUIT
+                            {
+                                Plugin.Logger.LogInfo("[KeyboardHook] 收到 WM_QUIT 消息");
+                                break;
+                            }
+                            
+                            TranslateMessage(ref msg);
+                            DispatchMessage(ref msg);
+                        }
+                        else
+                        {
+                            // 没有消息时短暂休眠，避免 CPU 占用过高
+                            Thread.Sleep(PluginConfig.KeyboardHookInterval.Value);
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        // 没有消息时短暂休眠，避免 CPU 占用过高
-                        Thread.Sleep(PluginConfig.KeyboardHookInterval.Value);
+                        // 消息循环内的异常不应该导致整个线程崩溃
+                        Plugin.Logger.LogError($"[KeyboardHook] 消息处理异常(已隔离): {ex.Message}");
+                        Thread.Sleep(100); // 短暂延迟避免异常循环
                     }
                 }
 
@@ -202,13 +225,24 @@ namespace ChillPatcher.Patches
             }
             catch (Exception ex)
             {
-                Plugin.Logger.LogError($"[KeyboardHook] 线程异常: {ex}");
+                Plugin.Logger.LogError($"[KeyboardHook] 线程崩溃: {ex.GetType().Name}: {ex.Message}");
+                Plugin.Logger.LogError($"[KeyboardHook] 堆栈: {ex.StackTrace}");
+                
+                // 尝试自动重启
+                TryRestartHookThread();
             }
             finally
             {
                 if (hookId != IntPtr.Zero)
                 {
-                    UnhookWindowsHookEx(hookId);
+                    try
+                    {
+                        UnhookWindowsHookEx(hookId);
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Logger.LogError($"[KeyboardHook] 卸载钩子时异常: {ex.Message}");
+                    }
                     hookId = IntPtr.Zero;
                 }
             }
@@ -296,6 +330,10 @@ namespace ChillPatcher.Patches
                     {
                         // 使用Rime处理输入
                         ProcessKeyWithRime(vkCode);
+                        
+                        // 通知InputField刷新Rime显示
+                        TMP_InputField_LateUpdate_Patch.RequestRimeUpdate();
+                        
                         return (IntPtr)1; // Rime模式总是拦截
                     }
                     else
@@ -315,12 +353,20 @@ namespace ChillPatcher.Patches
         }
 
         /// <summary>
-        /// 使用Rime处理按键
+        /// 使用Rime处理按键 - 带异常隔离
         /// </summary>
         private static void ProcessKeyWithRime(uint vkCode)
         {
             try
             {
+                // 检查Rime引擎是否健康
+                if (rimeEngine == null || !rimeEngine.IsInitialized)
+                {
+                    Plugin.Logger.LogWarning("[Rime] 引擎未初始化,降级为简单模式");
+                    ProcessKeySimple(vkCode);
+                    return;
+                }
+                
                 // 使用 Weasel 风格的按键转换
                 if (!KeyEventConverter.ConvertKeyEvent(vkCode, 0, out int keycode, out int mask))
                 {
@@ -356,9 +402,17 @@ namespace ChillPatcher.Patches
                 // Rime没有处理(processed=false),传递给简单队列
                 ProcessKeySimple(vkCode);
             }
+            catch (AccessViolationException ex)
+            {
+                Plugin.Logger.LogError($"[Rime] 内存访问异常(已隔离): {ex.Message}");
+                TryRestartRime();
+                ProcessKeySimple(vkCode); // 降级处理
+            }
             catch (Exception ex)
             {
-                Plugin.Logger.LogError($"[Rime] 处理按键失败: {ex.Message}");
+                Plugin.Logger.LogError($"[Rime] 处理按键异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                // 不重启Rime,继续尝试使用(可能只是偶发异常)
+                ProcessKeySimple(vkCode); // 降级处理这个按键
             }
         }
 
@@ -448,21 +502,42 @@ namespace ChillPatcher.Patches
         }
 
         /// <summary>
-        /// 初始化Rime引擎
+        /// 初始化Rime引擎 - 带完整异常保护
         /// </summary>
         private static void InitializeRime()
         {
-            Plugin.Logger.LogInfo("[Rime] 正在初始化引擎...");
-            
-            string sharedData = RimeConfigManager.GetSharedDataDirectory();
-            string userData = RimeConfigManager.GetUserDataDirectory();
-            
-            Plugin.Logger.LogInfo(RimeConfigManager.GetConfigInfo());
-            
-            rimeEngine = new RimeEngine();
-            rimeEngine.Initialize(sharedData, userData, "rime.chill");
-            
-            RimeConfigManager.CopyExampleConfig();
+            try
+            {
+                Plugin.Logger.LogInfo("[Rime] 正在初始化引擎...");
+                
+                string sharedData = RimeConfigManager.GetSharedDataDirectory();
+                string userData = RimeConfigManager.GetUserDataDirectory();
+                
+                Plugin.Logger.LogInfo(RimeConfigManager.GetConfigInfo());
+                
+                rimeEngine = new RimeEngine();
+                rimeEngine.Initialize(sharedData, userData, "rime.chill");
+                
+                RimeConfigManager.CopyExampleConfig();
+                
+                Plugin.Logger.LogInfo("[Rime] 引擎初始化成功");
+            }
+            catch (DllNotFoundException ex)
+            {
+                Plugin.Logger.LogError($"[Rime] DLL未找到: {ex.Message}");
+                throw; // DLL缺失无法恢复,抛出让上层处理
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] 初始化失败: {ex.GetType().Name}: {ex.Message}");
+                Plugin.Logger.LogError($"[Rime] 堆栈: {ex.StackTrace}");
+                if (rimeEngine != null)
+                {
+                    try { rimeEngine.Dispose(); } catch { }
+                    rimeEngine = null;
+                }
+                throw; // 抛出让上层降级为简单模式
+            }
         }
 
         /// <summary>
@@ -473,7 +548,32 @@ namespace ChillPatcher.Patches
             if (!useRime || rimeEngine == null)
                 return null;
             
-            return rimeEngine.GetContext();
+            try
+            {
+                return rimeEngine.GetContext();
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] GetRimeContext异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// 检查Rime是否有未完成的composition(preedit)
+        /// 这个方法更轻量,不会触发复杂的context获取
+        /// </summary>
+        public static bool HasRimePreedit()
+        {
+            if (!useRime || rimeEngine == null || !rimeEngine.IsInitialized)
+                return false;
+            
+            // 使用队列判断:如果有commit队列,说明有输入
+            // 或者检查是否有按键事件正在处理
+            lock (queueLock)
+            {
+                return commitQueue.Count > 0;
+            }
         }
 
         /// <summary>
@@ -509,10 +609,17 @@ namespace ChillPatcher.Patches
         /// </summary>
         public static void ClearAll()
         {
-            // 清空Rime待提交
-            if (useRime && rimeEngine != null)
+            try
             {
-                rimeEngine.ClearComposition();
+                // 清空Rime待提交
+                if (useRime && rimeEngine != null)
+                {
+                    rimeEngine.ClearComposition();
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] 清空组合失败(已忽略): {ex.Message}");
             }
             
             // 清空队列
@@ -520,6 +627,123 @@ namespace ChillPatcher.Patches
             {
                 inputQueue.Clear();
                 commitQueue.Clear();
+            }
+        }
+        
+        /// <summary>
+        /// 尝试重启钩子线程 - 带限流保护
+        /// </summary>
+        private static void TryRestartHookThread()
+        {
+            lock (restartLock)
+            {
+                var now = DateTime.Now;
+                
+                // 检查冷却时间
+                if (now - lastRestartTime < restartCooldown)
+                {
+                    Plugin.Logger.LogWarning($"[KeyboardHook] 重启冷却中,跳过重启(剩余 {(restartCooldown - (now - lastRestartTime)).TotalSeconds:F1}s)");
+                    return;
+                }
+                
+                // 检查重启次数
+                if (restartCount >= maxRestartAttempts)
+                {
+                    Plugin.Logger.LogError($"[KeyboardHook] 已达到最大重启次数({maxRestartAttempts}),停止自动重启");
+                    isRunning = false;
+                    return;
+                }
+                
+                restartCount++;
+                lastRestartTime = now;
+                
+                Plugin.Logger.LogWarning($"[KeyboardHook] 尝试静默重启钩子线程(第 {restartCount}/{maxRestartAttempts} 次)...");
+                
+                try
+                {
+                    // 清理旧线程
+                    if (hookThread != null && hookThread.IsAlive)
+                    {
+                        PostQuitMessage(0);
+                        Thread.Sleep(200); // 等待旧线程退出
+                    }
+                    
+                    // 启动新线程
+                    isRunning = true;
+                    hookThread = new Thread(HookThreadProc);
+                    hookThread.IsBackground = true;
+                    hookThread.Start();
+                    
+                    Plugin.Logger.LogInfo($"[KeyboardHook] 钩子线程重启成功");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Logger.LogError($"[KeyboardHook] 重启失败: {ex.Message}");
+                    isRunning = false;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 尝试重启Rime引擎 - 带限流保护
+        /// </summary>
+        private static void TryRestartRime()
+        {
+            lock (restartLock)
+            {
+                Plugin.Logger.LogWarning("[Rime] 检测到严重错误,尝试重启引擎...");
+                
+                try
+                {
+                    // 释放旧引擎
+                    if (rimeEngine != null)
+                    {
+                        try { rimeEngine.Dispose(); } catch { }
+                        rimeEngine = null;
+                    }
+                    
+                    Thread.Sleep(500); // 短暂延迟
+                    
+                    // 重新初始化
+                    InitializeRime();
+                    
+                    Plugin.Logger.LogInfo("[Rime] 引擎重启成功");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Logger.LogError($"[Rime] 重启失败,降级为简单模式: {ex.Message}");
+                    useRime = false;
+                    rimeEngine = null;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 健康检查 - 由Unity主线程调用
+        /// </summary>
+        public static void HealthCheck()
+        {
+            try
+            {
+                // 检查钩子线程是否存活
+                if (isRunning && (hookThread == null || !hookThread.IsAlive))
+                {
+                    Plugin.Logger.LogWarning("[KeyboardHook] 检测到钩子线程已死亡,尝试重启...");
+                    TryRestartHookThread();
+                    return;
+                }
+                
+                // 检查心跳(超过10秒无心跳视为卡死)
+                if (isRunning && (DateTime.Now - lastHeartbeat).TotalSeconds > 10)
+                {
+                    Plugin.Logger.LogWarning($"[KeyboardHook] 检测到线程无响应(心跳超时 {(DateTime.Now - lastHeartbeat).TotalSeconds:F1}s),尝试重启...");
+                    TryRestartHookThread();
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[KeyboardHook] 健康检查异常: {ex.Message}");
             }
         }
     }
@@ -537,6 +761,9 @@ namespace ChillPatcher.Patches
             {
                 // 清空所有输入
                 KeyboardHookPatch.ClearAll();
+                
+                // 通知InputField刷新(鼠标点击可能改变焦点)
+                TMP_InputField_LateUpdate_Patch.RequestRimeUpdate();
             }
         }
     }
@@ -551,6 +778,10 @@ namespace ChillPatcher.Patches
         
         // 使用字典为每个InputField实例维护独立状态
         private static Dictionary<int, PreeditState> preeditStates = new Dictionary<int, PreeditState>();
+        
+        // 需要更新的InputField ID (由Hook直接设置)
+        private static volatile int pendingUpdateInstanceId = -1;
+        private static readonly object updateLock = new object();
 
         class PreeditState
         {
@@ -560,201 +791,236 @@ namespace ChillPatcher.Patches
             public int savedCaretPosition = 0; // 进入preedit时的光标位置
             public bool inPreeditMode = false;
         }
+        
+        /// <summary>
+        /// 通知需要更新Rime显示(由Hook线程调用)
+        /// </summary>
+        public static void RequestRimeUpdate()
+        {
+            lock (updateLock)
+            {
+                pendingUpdateInstanceId = -2; // -2表示全局更新(不限定InputField)
+            }
+        }
 
         static void Postfix(TMP_InputField __instance)
         {
-            int instanceId = __instance.GetInstanceID();
-            
-            // 只在输入框激活且获得焦点时注入
-            if (!__instance.isFocused)
+            try
             {
-                // 失焦时清理:preedit状态、Rime composition、所有队列
-                if (preeditStates.ContainsKey(instanceId))
-                {
-                    preeditStates.Remove(instanceId);
-                    
-                    // 清理Rime composition和队列
-                    KeyboardHookPatch.ClearAll();
-                    
-                    Plugin.Logger.LogInfo($"[InputField #{instanceId}] 失焦,已清理所有状态和队列");
-                }
-                return;
-            }
-
-            // 获取或创建该InputField的preedit状态
-            if (!preeditStates.TryGetValue(instanceId, out var state))
-            {
-                state = new PreeditState();
-                preeditStates[instanceId] = state;
-            }
-
-            // 1. 检查Rime的preedit状态
-            var rimeContext = KeyboardHookPatch.GetRimeContext();
-            
-            if (rimeContext != null && !string.IsNullOrEmpty(rimeContext.Preedit))
-            {
-                // 进入preedit模式时保存基础文本和光标位置
-                if (!state.inPreeditMode)
-                {
-                    int caret = __instance.caretPosition;
-                    state.savedCaretPosition = caret;
-                    state.savedBaseText = __instance.text.Substring(0, caret); // 光标前的文本
-                    state.savedTextAfterCaret = caret < __instance.text.Length ? __instance.text.Substring(caret) : ""; // 光标后的文本
-                    state.inPreeditMode = true;
-                    Plugin.Logger.LogInfo($"[Preedit #{instanceId}] 进入模式, caret={caret}, before='{state.savedBaseText}', after='{state.savedTextAfterCaret}'");
-                }
-
-                // 生成新的preedit显示
-                string currentPreeditDisplay = rimeContext.GetPreeditWithCandidates();
+                int instanceId = __instance.GetInstanceID();
                 
-                // 只在preedit显示内容变化时更新文本
-                if (currentPreeditDisplay != state.lastPreeditDisplay)
+                // 只在输入框激活且获得焦点时注入
+                if (!__instance.isFocused)
                 {
-                    Plugin.Logger.LogInfo($"[Preedit #{instanceId}] 更新显示: '{state.lastPreeditDisplay}' → '{currentPreeditDisplay}'");
-                    state.lastPreeditDisplay = currentPreeditDisplay;
-                    // 文本 = 光标前 + preedit + 光标后
-                    __instance.text = state.savedBaseText + currentPreeditDisplay + state.savedTextAfterCaret;
-                    __instance.ForceLabelUpdate(); // 立即更新文本显示
-                }
-                
-                // 始终更新光标位置(即使preedit文本未变,光标可能循环移动)
-                int targetCaret = state.savedBaseText.Length + rimeContext.CursorPos;
-                __instance.caretPosition = targetCaret;
-                __instance.stringPosition = targetCaret;
-                __instance.selectionAnchorPosition = targetCaret;
-                __instance.selectionFocusPosition = targetCaret;
-                __instance.ForceLabelUpdate(); // 立即更新光标显示,消除闪烁
-                
-                return; // preedit显示中，不处理提交
-            }
-            else
-            {
-                // 退出preedit模式,恢复基础文本
-                if (state.inPreeditMode)
-                {
-                    __instance.text = state.savedBaseText + state.savedTextAfterCaret;
-                    __instance.caretPosition = state.savedCaretPosition;
-                    state.lastPreeditDisplay = "";
-                    state.savedBaseText = "";
-                    state.savedTextAfterCaret = "";
-                    state.inPreeditMode = false;
-                }
-            }
-
-            // 2. 获取已提交的文本
-            string commit = KeyboardHookPatch.GetCommittedText();
-            if (!string.IsNullOrEmpty(commit))
-            {
-                int currentCaret = __instance.caretPosition;
-                Plugin.Logger.LogInfo($"[InputField #{instanceId}] 提交前: text='{__instance.text}', caret={currentCaret}");
-                
-                // 插入到光标位置
-                __instance.text = __instance.text.Insert(currentCaret, commit);
-                __instance.ForceLabelUpdate(); // 先强制更新文本
-                
-                // 光标移动到插入文本之后
-                int targetCaret = currentCaret + commit.Length;
-                __instance.caretPosition = targetCaret;
-                __instance.stringPosition = targetCaret; // TMP特有属性
-                __instance.selectionAnchorPosition = targetCaret;
-                __instance.selectionFocusPosition = targetCaret;
-                
-                Plugin.Logger.LogInfo($"[InputField #{instanceId}] 提交后: text='{__instance.text}', caret={__instance.caretPosition}, target={targetCaret}, commit='{commit}'");
-                return;
-            }
-
-            // 3. 简单队列模式的兼容处理
-            string simpleInput = KeyboardHookPatch.GetAndClearInputBuffer();
-            if (!string.IsNullOrEmpty(simpleInput))
-            {
-                // 获取KeyPressed方法（只获取一次）
-                if (keyPressedMethod == null)
-                {
-                    keyPressedMethod = typeof(TMP_InputField).GetMethod("KeyPressed",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                }
-
-                if (keyPressedMethod == null)
-                {
-                    Plugin.Logger.LogError("[桌面输入] 无法获取KeyPressed方法");
+                    // 失焦时清理:preedit状态、Rime composition、所有队列
+                    if (preeditStates.ContainsKey(instanceId))
+                    {
+                        preeditStates.Remove(instanceId);
+                        
+                        // 清理Rime composition和队列
+                        KeyboardHookPatch.ClearAll();
+                        
+                        Plugin.Logger.LogInfo($"[InputField #{instanceId}] 失焦,已清理所有状态和队列");
+                    }
                     return;
                 }
 
-                // 调用KeyPressed处理每个字符
-                foreach (char c in simpleInput)
+                // 获取或创建该InputField的preedit状态
+                if (!preeditStates.TryGetValue(instanceId, out var state))
                 {
-                    UnityEngine.Event evt = new UnityEngine.Event();
-                    evt.type = UnityEngine.EventType.KeyDown;
+                    state = new PreeditState();
+                    preeditStates[instanceId] = state;
+                }
 
-                    if (c == '\b')
+                // 检查是否有pending的更新请求(由Hook触发)
+                bool shouldUpdateRime = false;
+                lock (updateLock)
+                {
+                    if (pendingUpdateInstanceId == -2) // 全局更新
                     {
-                        evt.keyCode = KeyCode.Backspace;
-                        evt.character = '\0';
+                        shouldUpdateRime = true;
+                        pendingUpdateInstanceId = -1; // 清除pending状态
                     }
-                    else if (c == '\n')
+                }
+                
+                // 只在Hook触发更新或已在preedit模式时调用GetRimeContext
+                if (shouldUpdateRime || state.inPreeditMode)
+                {
+                    // 1. 检查Rime的preedit状态
+                    var rimeContext = KeyboardHookPatch.GetRimeContext();
+                
+                    if (rimeContext != null && !string.IsNullOrEmpty(rimeContext.Preedit))
                     {
-                        evt.keyCode = KeyCode.Return;
-                        evt.character = '\n';
+                        // 进入preedit模式时保存基础文本和光标位置
+                        if (!state.inPreeditMode)
+                        {
+                            int caret = __instance.caretPosition;
+                            state.savedCaretPosition = caret;
+                            state.savedBaseText = __instance.text.Substring(0, caret); // 光标前的文本
+                            state.savedTextAfterCaret = caret < __instance.text.Length ? __instance.text.Substring(caret) : ""; // 光标后的文本
+                            state.inPreeditMode = true;
+                            Plugin.Logger.LogInfo($"[Preedit #{instanceId}] 进入模式, caret={caret}, before='{state.savedBaseText}', after='{state.savedTextAfterCaret}'");
+                        }
+
+                        // 生成新的preedit显示
+                        string currentPreeditDisplay = rimeContext.GetPreeditWithCandidates();
+                        
+                        // 只在preedit显示内容变化时更新文本
+                        if (currentPreeditDisplay != state.lastPreeditDisplay)
+                        {
+                            Plugin.Logger.LogInfo($"[Preedit #{instanceId}] 更新显示: '{state.lastPreeditDisplay}' → '{currentPreeditDisplay}'");
+                            state.lastPreeditDisplay = currentPreeditDisplay;
+                            // 文本 = 光标前 + preedit + 光标后
+                            __instance.text = state.savedBaseText + currentPreeditDisplay + state.savedTextAfterCaret;
+                            __instance.ForceLabelUpdate(); // 立即更新文本显示
+                        }
+                        
+                        // 更新光标位置
+                        int targetCaret = state.savedBaseText.Length + rimeContext.CursorPos;
+                        __instance.caretPosition = targetCaret;
+                        __instance.stringPosition = targetCaret;
+                        __instance.selectionAnchorPosition = targetCaret;
+                        __instance.selectionFocusPosition = targetCaret;
+                        __instance.ForceLabelUpdate();
+                        
+                        return; // preedit显示中，不处理提交
                     }
                     else
                     {
-                        evt.keyCode = KeyCode.None;
-                        evt.character = c;
+                        // 退出preedit模式,恢复基础文本
+                        if (state.inPreeditMode)
+                        {
+                            __instance.text = state.savedBaseText + state.savedTextAfterCaret;
+                            __instance.caretPosition = state.savedCaretPosition;
+                            state.lastPreeditDisplay = "";
+                            state.savedBaseText = "";
+                            state.savedTextAfterCaret = "";
+                            state.inPreeditMode = false;
+                        }
+                    }
+                }
+
+                // 2. 获取已提交的文本
+                string commit = KeyboardHookPatch.GetCommittedText();
+                if (!string.IsNullOrEmpty(commit))
+                {
+                    int currentCaret = __instance.caretPosition;
+                    Plugin.Logger.LogInfo($"[InputField #{instanceId}] 提交前: text='{__instance.text}', caret={currentCaret}");
+                    
+                    // 插入到光标位置
+                    __instance.text = __instance.text.Insert(currentCaret, commit);
+                    __instance.ForceLabelUpdate(); // 先强制更新文本
+                    
+                    // 光标移动到插入文本之后
+                    int targetCaret = currentCaret + commit.Length;
+                    __instance.caretPosition = targetCaret;
+                    __instance.stringPosition = targetCaret; // TMP特有属性
+                    __instance.selectionAnchorPosition = targetCaret;
+                    __instance.selectionFocusPosition = targetCaret;
+                    
+                    Plugin.Logger.LogInfo($"[InputField #{instanceId}] 提交后: text='{__instance.text}', caret={__instance.caretPosition}, target={targetCaret}, commit='{commit}'");
+                    return;
+                }
+
+                // 3. 简单队列模式的兼容处理
+                string simpleInput = KeyboardHookPatch.GetAndClearInputBuffer();
+                if (!string.IsNullOrEmpty(simpleInput))
+                {
+                    // 获取KeyPressed方法（只获取一次）
+                    if (keyPressedMethod == null)
+                    {
+                        keyPressedMethod = typeof(TMP_InputField).GetMethod("KeyPressed",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                     }
 
-                    keyPressedMethod.Invoke(__instance, new object[] { evt });
+                    if (keyPressedMethod == null)
+                    {
+                        Plugin.Logger.LogError("[桌面输入] 无法获取KeyPressed方法");
+                        return;
+                    }
+
+                    // 调用KeyPressed处理每个字符
+                    foreach (char c in simpleInput)
+                    {
+                        UnityEngine.Event evt = new UnityEngine.Event();
+                        evt.type = UnityEngine.EventType.KeyDown;
+
+                        if (c == '\b')
+                        {
+                            evt.keyCode = KeyCode.Backspace;
+                            evt.character = '\0';
+                        }
+                        else if (c == '\n')
+                        {
+                            evt.keyCode = KeyCode.Return;
+                            evt.character = '\n';
+                        }
+                        else
+                        {
+                            evt.keyCode = KeyCode.None;
+                            evt.character = c;
+                        }
+
+                        keyPressedMethod.Invoke(__instance, new object[] { evt });
+                    }
+
+                    __instance.ForceLabelUpdate();
                 }
 
-                __instance.ForceLabelUpdate();
-            }
-
-            // 4. 处理导航键(方向键/Delete)
-            uint? navKey = KeyboardHookPatch.GetNavigationKey();
-            if (navKey.HasValue)
-            {
-                int currentCaret = __instance.caretPosition;
-                int textLength = __instance.text.Length;
-
-                switch (navKey.Value)
+                // 4. 处理导航键(方向键/Delete)
+                uint? navKey = KeyboardHookPatch.GetNavigationKey();
+                if (navKey.HasValue)
                 {
-                    case 0x25: // Left
-                        if (currentCaret > 0)
-                        {
-                            __instance.caretPosition = currentCaret - 1;
-                            __instance.stringPosition = currentCaret - 1;
-                            __instance.selectionAnchorPosition = currentCaret - 1;
-                            __instance.selectionFocusPosition = currentCaret - 1;
-                            __instance.ForceLabelUpdate(); // 强制更新,避免闪烁延迟
-                        }
-                        break;
+                    int currentCaret = __instance.caretPosition;
+                    int textLength = __instance.text.Length;
 
-                    case 0x27: // Right
-                        if (currentCaret < textLength)
-                        {
-                            __instance.caretPosition = currentCaret + 1;
-                            __instance.stringPosition = currentCaret + 1;
-                            __instance.selectionAnchorPosition = currentCaret + 1;
-                            __instance.selectionFocusPosition = currentCaret + 1;
-                            __instance.ForceLabelUpdate(); // 强制更新,避免闪烁延迟
-                        }
-                        break;
+                    switch (navKey.Value)
+                    {
+                        case 0x25: // Left
+                            if (currentCaret > 0)
+                            {
+                                __instance.caretPosition = currentCaret - 1;
+                                __instance.stringPosition = currentCaret - 1;
+                                __instance.selectionAnchorPosition = currentCaret - 1;
+                                __instance.selectionFocusPosition = currentCaret - 1;
+                                __instance.ForceLabelUpdate(); // 强制更新,避免闪烁延迟
+                            }
+                            break;
 
-                    case 0x26: // Up
-                        MoveCaretVertically(__instance, -1);
-                        break;
+                        case 0x27: // Right
+                            if (currentCaret < textLength)
+                            {
+                                __instance.caretPosition = currentCaret + 1;
+                                __instance.stringPosition = currentCaret + 1;
+                                __instance.selectionAnchorPosition = currentCaret + 1;
+                                __instance.selectionFocusPosition = currentCaret + 1;
+                                __instance.ForceLabelUpdate(); // 强制更新,避免闪烁延迟
+                            }
+                            break;
 
-                    case 0x28: // Down
-                        MoveCaretVertically(__instance, 1);
-                        break;
+                        case 0x26: // Up
+                            MoveCaretVertically(__instance, -1);
+                            break;
 
-                    case 0x2E: // Delete
-                        if (currentCaret < textLength)
-                        {
-                            __instance.text = __instance.text.Remove(currentCaret, 1);
-                            __instance.ForceLabelUpdate();
-                        }
-                        break;
+                        case 0x28: // Down
+                            MoveCaretVertically(__instance, 1);
+                            break;
+
+                        case 0x2E: // Delete
+                            if (currentCaret < textLength)
+                            {
+                                __instance.text = __instance.text.Remove(currentCaret, 1);
+                                __instance.ForceLabelUpdate();
+                            }
+                            break;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                // 捕获所有异常,防止崩溃Unity
+                Plugin.Logger.LogError($"[InputField] LateUpdate异常(已隔离): {ex.GetType().Name}: {ex.Message}");
+                Plugin.Logger.LogError($"[InputField] 堆栈: {ex.StackTrace}");
             }
         }
 
