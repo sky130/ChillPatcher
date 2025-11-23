@@ -1,9 +1,6 @@
 [submodule "librime"]
 	path = librime
 	url = https://github.com/rime/librime.git
-[submodule "rime-ice"]
-	path = rime-ice
-	url = https://github.com/iDvel/rime-ice.git
 [submodule "rime-schemas/luna-pinyin"]
 	path = rime-schemas/luna-pinyin
 	url = https://github.com/rime/rime-luna-pinyin.git
