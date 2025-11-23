@@ -1,0 +1,21 @@
+[submodule "librime"]
+	path = librime
+	url = https://github.com/rime/librime.git
+[submodule "rime-ice"]
+	path = rime-ice
+	url = https://github.com/iDvel/rime-ice.git
+[submodule "rime-schemas/luna-pinyin"]
+	path = rime-schemas/luna-pinyin
+	url = https://github.com/rime/rime-luna-pinyin.git
+[submodule "rime-schemas/double-pinyin"]
+	path = rime-schemas/double-pinyin
+	url = https://github.com/rime/rime-double-pinyin.git
+[submodule "rime-schemas/stroke"]
+	path = rime-schemas/stroke
+	url = https://github.com/rime/rime-stroke.git
+[submodule "rime-schemas/essay"]
+	path = rime-schemas/essay
+	url = https://github.com/rime/rime-essay.git
+[submodule "rime-schemas/prelude"]
+	path = rime-schemas/prelude
+	url = https://github.com/rime/rime-prelude.git

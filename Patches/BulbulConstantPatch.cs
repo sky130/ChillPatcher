@@ -14,7 +14,7 @@ namespace ChillPatcher.Patches
         {
             string userID = PluginConfig.OfflineUserId.Value;
             __result = System.IO.Path.Combine("SaveData", isDemo ? "Demo" : "Release", version, userID);
-            Plugin.Logger.LogInfo($"[ChillPatcher] CreateSaveDirectoryPath(bool, string) - 使用用户ID: {userID}, 路径: {__result}");
+            // Plugin.Logger.LogInfo($"[ChillPatcher] CreateSaveDirectoryPath(bool, string) - 使用用户ID: {userID}, 路径: {__result}");
             return false; // 阻止原方法执行
         }
     }
@@ -30,7 +30,7 @@ namespace ChillPatcher.Patches
         {
             string userID = PluginConfig.OfflineUserId.Value;
             __result = System.IO.Path.Combine("SaveData", versionDirectory, userID);
-            Plugin.Logger.LogInfo($"[ChillPatcher] CreateSaveDirectoryPath(string) - 使用用户ID: {userID}, 路径: {__result}");
+            // Plugin.Logger.LogInfo($"[ChillPatcher] CreateSaveDirectoryPath(string) - 使用用户ID: {userID}, 路径: {__result}");
             return false; // 阻止原方法执行
         }
     }
