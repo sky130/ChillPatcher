@@ -47,7 +47,7 @@ namespace ChillPatcher
             Logger.LogInfo("==== ChillPatcher Configuration ====");
             Logger.LogInfo($"Virtual Scroll: {(UIFrameworkConfig.EnableVirtualScroll.Value ? "ON" : "OFF")} (Performance optimization)");
             Logger.LogInfo($"Album Art Display: {(UIFrameworkConfig.EnableAlbumArtDisplay.Value ? "ON" : "OFF")} (Show cover on button)");
-            Logger.LogInfo($"Folder Playlists: {(UIFrameworkConfig.EnableFolderPlaylists.Value ? "ON" : "OFF")} (Runtime only)");
+            Logger.LogInfo($"Folder Playlists: {(PluginConfig.EnableFolderPlaylists.Value ? "ON" : "OFF")} (Runtime only)");
             Logger.LogInfo($"Unlimited Songs: {(UIFrameworkConfig.EnableUnlimitedSongs.Value ? "ON" : "OFF")} (May affect save)");
             Logger.LogInfo($"Extended Formats: {(UIFrameworkConfig.EnableExtendedFormats.Value ? "ON" : "OFF")} (OGG/FLAC/AIFF)");
             Logger.LogInfo("====================================");
@@ -64,7 +64,7 @@ namespace ChillPatcher
                 Logger.LogInfo("ChillUIFramework initialized!");
                 
                 // 仅在启用文件夹歌单时设置扫描器（但不立即加载）
-                if (UIFrameworkConfig.EnableFolderPlaylists.Value)
+                if (PluginConfig.EnableFolderPlaylists.Value)
                 {
                     Logger.LogInfo("==================================================");
                     Logger.LogInfo("ChillPatcher UI Framework initialized!");
@@ -89,7 +89,7 @@ namespace ChillPatcher
         {
             try
             {
-                if (!UIFrameworkConfig.EnableFolderPlaylists.Value)
+                if (!PluginConfig.EnableFolderPlaylists.Value)
                 {
                     return;
                 }

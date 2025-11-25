@@ -25,12 +25,6 @@ namespace ChillPatcher
         public static ConfigEntry<bool> EnableVirtualScroll { get; private set; }
         
         /// <summary>
-        /// 是否启用文件夹歌单（默认：开启）
-        /// 文件夹歌单不写入存档，运行时动态加载
-        /// </summary>
-        public static ConfigEntry<bool> EnableFolderPlaylists { get; private set; }
-        
-        /// <summary>
         /// 是否显示音乐封面（默认：开启）
         /// 将播放列表按钮的图标替换为当前播放音乐的封面
         /// </summary>
@@ -65,13 +59,6 @@ namespace ChillPatcher
                 "EnableVirtualScroll",
                 true,  // 默认开启，不影响存档
                 "Enable virtual scrolling for better performance"
-            );
-            
-            EnableFolderPlaylists = config.Bind(
-                "Features",
-                "EnableFolderPlaylists",
-                true,  // 默认开启，不影响存档
-                "Enable folder-based playlists (runtime only, not saved)"
             );
             
             EnableAlbumArtDisplay = config.Bind(
