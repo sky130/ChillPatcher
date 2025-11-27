@@ -1,6 +1,10 @@
-# ChillPatcher - Wallpaper Engine 环境运行补丁
+# ChillPatcher
 
-这是一个 BepInEx 插件，用于使《Chill With You》游戏正确在 Wallpaper Engine 环境下运行。
+这是一个 BepInEx 插件，包括多种新的功能改进
+为游戏真正的flac支持.
+为游戏提供歌曲批量导入和歌单管理.
+使《Chill With You》游戏正确在 Wallpaper Engine 环境下运行.
+添加了游戏内输入法.
 
 ## 🐛 遇到问题？
 
@@ -472,3 +476,4 @@ A: 暂不支持配置禁用。如需禁用，请移除 `ChillPatcher.dll` 插件
 - [RIME/中州韵输入法引擎](https://github.com/rime/librime) - 强大的开源输入法引擎
 - [BepInEx](https://github.com/BepInEx/BepInEx) - Unity 游戏模组框架
 - [HarmonyX](https://github.com/BepInEx/HarmonyX) - .NET 运行时方法补丁库
+- [dr_libs](https://github.com/mackron/dr_libs) - flac解码支持
