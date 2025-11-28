@@ -133,6 +133,7 @@
   <Target Name="CopyToPlugins" AfterTargets="Build">
     <PropertyGroup>
       <PluginDir>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\plugins\ChillPatcher\</PluginDir>
+      <NativePluginDir>$(PluginDir)native\</NativePluginDir>
       <RimeDllPath>$(ProjectDir)librime\build\bin\Release\rime.dll</RimeDllPath>
       <RimeDataDir>$(PluginDir)rime-data\</RimeDataDir>
       <RimeSharedDir>$(RimeDataDir)shared\</RimeSharedDir>
@@ -144,8 +145,8 @@
     <MakeDir Directories="$(RimeSharedDir)" />
     <MakeDir Directories="$(RimeUserDir)" />
     <MakeDir Directories="$(OpenCCDir)" />
-    <MakeDir Directories="$(PluginDir)x64\" />
-    <MakeDir Directories="$(PluginDir)x86\" />
+    <MakeDir Directories="$(NativePluginDir)x64\" />
+    <!-- <MakeDir Directories="$(NativePluginDir)x86\" /> -->
     
     <!-- Copy main DLL -->
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)" />
@@ -160,12 +161,11 @@
     <ItemGroup>
       <SQLiteFiles Include="$(OutputPath)System.Data.SQLite.dll" />
       <SQLiteNativeX64 Include="$(OutputPath)x64\SQLite.Interop.dll" />
-      <SQLiteNativeX86 Include="$(OutputPath)x86\SQLite.Interop.dll" />
+      <!-- <SQLiteNativeX86 Include="$(OutputPath)x86\SQLite.Interop.dll" /> -->
     </ItemGroup>
     <Copy SourceFiles="@(SQLiteFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)System.Data.SQLite.dll')" />
-    <Copy SourceFiles="@(SQLiteNativeX64)" DestinationFiles="$(PluginDir)x64\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x64\SQLite.Interop.dll')" />
-    <Copy SourceFiles="@(SQLiteNativeX86)" DestinationFiles="$(PluginDir)x86\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x86\SQLite.Interop.dll')" />
-    
+    <Copy SourceFiles="@(SQLiteNativeX64)" DestinationFiles="$(NativePluginDir)x64\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x64\SQLite.Interop.dll')" />
+    <!-- <Copy SourceFiles="@(SQLiteNativeX86)" DestinationFiles="$(NativePluginDir)x86\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x86\SQLite.Interop.dll')" />     -->
     <!-- Copy rime.dll -->
     <Copy SourceFiles="$(RimeDllPath)" DestinationFolder="$(PluginDir)" Condition="Exists('$(RimeDllPath)')" />
     
@@ -213,26 +213,29 @@
       <NativePluginDir>$(PluginDir)native\</NativePluginDir>
     </PropertyGroup>
     <MakeDir Directories="$(NativePluginDir)x64" Condition="!Exists('$(NativePluginDir)x64')" />
-    <MakeDir Directories="$(NativePluginDir)x86" Condition="!Exists('$(NativePluginDir)x86')" />
+    <!-- <MakeDir Directories="$(NativePluginDir)x86" Condition="!Exists('$(NativePluginDir)x86')" /> -->
     
     <ItemGroup>
       <FlacDecoderX64 Include="$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll" />
-      <FlacDecoderX86 Include="$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll" />
+      <!-- <FlacDecoderX86 Include="$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll" /> -->
     </ItemGroup>
     
     <Copy SourceFiles="@(FlacDecoderX64)" DestinationFolder="$(NativePluginDir)x64" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <Copy SourceFiles="@(FlacDecoderX86)" DestinationFolder="$(NativePluginDir)x86" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" />
-    
+    <!-- <Copy SourceFiles="@(FlacDecoderX86)" DestinationFolder="$(NativePluginDir)x86" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
+    <ItemGroup>
+       <VCRuntimeFiles Include="$(ProjectDir)lib\*.dll" /> 
+    </ItemGroup>
+    <Copy SourceFiles="@(VCRuntimeFiles)" DestinationFolder="$(NativePluginDir)x64" />
     <Message Text="Deployed to: $(PluginDir)" Importance="high" />
     <Message Text="Copied rime.dll" Importance="high" Condition="Exists('$(RimeDllPath)')" />
     <Message Text="Copied Rime schemas to shared: $(RimeSharedDir)" Importance="high" />
     <Message Text="Copied OpenCC data to: $(OpenCCDir)" Importance="high" />
     <Message Text="Copied Native FLAC decoder (x64)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <Message Text="Copied Native FLAC decoder (x86)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" />
+    <!-- <Message Text="Copied Native FLAC decoder (x86)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
     <Message Text="User data directory: $(RimeUserDir)" Importance="high" />
     <Warning Text="rime.dll not found at $(RimeDllPath)" Condition="!Exists('$(RimeDllPath)')" />
     <Warning Text="Native FLAC decoder (x64) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <Warning Text="Native FLAC decoder (x86) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" />
+    <!-- <Warning Text="Native FLAC decoder (x86) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
   </Target>
 
 </Project>

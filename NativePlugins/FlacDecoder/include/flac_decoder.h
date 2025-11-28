@@ -32,7 +32,7 @@ typedef struct {
  * @param out_info 输出音频信息（调用者需要调用 FreeFlacData 释放）
  * @return 0=成功, 非0=错误码
  */
-FLAC_API int DecodeFlacFile(const char* file_path, FlacAudioInfo* out_info);
+FLAC_API int DecodeFlacFile(const wchar_t* file_path, FlacAudioInfo* out_info);
 
 /**
  * 释放解码后的 PCM 数据
@@ -59,7 +59,7 @@ FLAC_API const char* FlacGetLastError();
  * @param out_total_pcm_frames 输出总帧数
  * @return 流句柄，失败返回 NULL
  */
-FLAC_API void* OpenFlacStream(const char* file_path, int* out_sample_rate, int* out_channels, unsigned long long* out_total_pcm_frames);
+FLAC_API void* OpenFlacStream(const wchar_t* file_path, int* out_sample_rate, int* out_channels, unsigned long long* out_total_pcm_frames);
 
 /**
  * 从 FLAC 流读取 PCM 帧

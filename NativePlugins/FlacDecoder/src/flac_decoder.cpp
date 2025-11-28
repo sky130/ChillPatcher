@@ -12,7 +12,7 @@ static thread_local std::string g_last_error;
 
 extern "C" {
 
-FLAC_API int DecodeFlacFile(const char* file_path, FlacAudioInfo* out_info) {
+FLAC_API int DecodeFlacFile(const wchar_t* file_path, FlacAudioInfo* out_info) {
     if (!file_path || !out_info) {
         g_last_error = "Invalid parameters";
         return -1;
@@ -21,10 +21,13 @@ FLAC_API int DecodeFlacFile(const char* file_path, FlacAudioInfo* out_info) {
     // 清零输出结构
     memset(out_info, 0, sizeof(FlacAudioInfo));
 
-    // 打开 FLAC 文件
-    drflac* flac = drflac_open_file(file_path, nullptr);
+    // ✅ 修改点：使用 drflac_open_file_w 支持宽字符路径
+    drflac* flac = drflac_open_file_w(file_path, nullptr);
+    
     if (!flac) {
-        g_last_error = std::string("Failed to open FLAC file: ") + file_path;
+        // 注意：file_path 是宽字符，不能直接加到 std::string (std::string 是 char)
+        // 为了简单起见，这里只记录通用错误，避免字符串转换导致的崩溃
+        g_last_error = "Failed to open FLAC file (Path resolution failed)";
         return -2;
     }
 
@@ -34,7 +37,7 @@ FLAC_API int DecodeFlacFile(const char* file_path, FlacAudioInfo* out_info) {
     out_info->total_pcm_frame_count = flac->totalPCMFrameCount;
 
     // 计算 PCM 数据大小
-    size_t total_samples = flac->totalPCMFrameCount * flac->channels;
+    size_t total_samples = (size_t)flac->totalPCMFrameCount * flac->channels;
     out_info->pcm_data_size = total_samples * sizeof(float);
 
     // 分配内存
@@ -45,7 +48,7 @@ FLAC_API int DecodeFlacFile(const char* file_path, FlacAudioInfo* out_info) {
         return -3;
     }
 
-    // 解码为 float PCM（范围 [-1.0, 1.0]，交错格式）
+    // 解码为 float PCM
     drflac_uint64 frames_read = drflac_read_pcm_frames_f32(
         flac, 
         flac->totalPCMFrameCount, 
@@ -78,13 +81,15 @@ FLAC_API const char* FlacGetLastError() {
 
 // ========== 流式解码实现 ==========
 
-FLAC_API void* OpenFlacStream(const char* file_path, int* out_sample_rate, int* out_channels, unsigned long long* out_total_pcm_frames) {
+FLAC_API void* OpenFlacStream(const wchar_t* file_path, int* out_sample_rate, int* out_channels, unsigned long long* out_total_pcm_frames) {
     if (!file_path) {
         g_last_error = "File path is NULL";
         return nullptr;
     }
 
-    drflac* flac = drflac_open_file(file_path, nullptr);
+    // ✅ 修改点：使用 drflac_open_file_w 支持宽字符路径
+    drflac* flac = drflac_open_file_w(file_path, nullptr);
+    
     if (!flac) {
         g_last_error = "Failed to open FLAC file for streaming";
         return nullptr;

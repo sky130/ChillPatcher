@@ -12,11 +12,11 @@ namespace ChillPatcher.Native
     {
         // DLL 名称 - .NET 会自动搜索路径
         private const string DLL_NAME = "ChillFlacDecoder";
-        
+
         // DLL 完整路径（在类初始化时设置）
         private static string DllPath;
         private static IntPtr DllHandle = IntPtr.Zero;
-        
+
         // 静态构造函数：手动加载 DLL
         static FlacDecoder()
         {
@@ -24,17 +24,17 @@ namespace ChillPatcher.Native
             {
                 // BepInEx 插件目录
                 var pluginDir = Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
-                
+
                 // 检测架构并选择正确的 DLL
                 var arch = IntPtr.Size == 8 ? "x64" : "x86";
                 DllPath = Path.Combine(pluginDir, "native", arch, "ChillFlacDecoder.dll");
-                
+
                 if (!File.Exists(DllPath))
                 {
                     Plugin.Log.LogWarning($"[FlacDecoder] DLL not found at: {DllPath}");
                     return;
                 }
-                
+
                 // Windows: 使用 LoadLibrary 手动加载 DLL
                 DllHandle = LoadLibrary(DllPath);
                 if (DllHandle == IntPtr.Zero)
@@ -51,7 +51,7 @@ namespace ChillPatcher.Native
                 Plugin.Log.LogError($"[FlacDecoder] Exception loading DLL: {ex}");
             }
         }
-        
+
         // Windows LoadLibrary
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadLibrary(string lpFileName);
@@ -72,7 +72,8 @@ namespace ChillPatcher.Native
         /// <summary>
         /// 解码 FLAC 文件
         /// </summary>
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
         private static extern int DecodeFlacFile(string filePath, out FlacAudioInfo info);
 
         /// <summary>
@@ -88,8 +89,8 @@ namespace ChillPatcher.Native
         private static extern IntPtr FlacGetLastError();
 
         // ========== 流式解码 API ==========
-        
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
         private static extern IntPtr OpenFlacStream(
             string filePath,
             out int sampleRate,
@@ -129,12 +130,12 @@ namespace ChillPatcher.Native
             }
 
             FlacAudioInfo info = default;
-            
+
             try
             {
                 // 调用 Native Plugin 解码
                 int result = DecodeFlacFile(filePath, out info);
-                
+
                 if (result != 0)
                 {
                     string error = GetErrorMessage();

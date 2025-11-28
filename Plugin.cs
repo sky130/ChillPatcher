@@ -29,6 +29,8 @@ namespace ChillPatcher
         {
             Logger = base.Logger;
             Log = Logger; // 设置别名
+            
+            CoreDependencyLoader.EnsureDependencies(Log);
             Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
             // 初始化配置
