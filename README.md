@@ -1,10 +1,10 @@
 # ChillPatcher
 
 这是一个 BepInEx 插件，包括多种新的功能改进
-为游戏真正的flac支持.
-为游戏提供歌曲批量导入和歌单管理.
-使《Chill With You》游戏正确在 Wallpaper Engine 环境下运行.
-添加了游戏内输入法.
+- 为游戏真正的flac支持.
+- 为游戏提供歌曲批量导入和歌单管理.
+- 使《Chill With You》游戏正确在 Wallpaper Engine 环境下运行.
+- 添加了游戏内输入法.
 
 ## 🐛 遇到问题？
 
@@ -12,25 +12,15 @@
 
 日志文件位置：
 ```
-BepInEx\LogOutput.log
+# 插件日志
+<游戏目录>\BepInEx\LogOutput.log
+# unity 日志
+C:\Users\<你的用户名>\AppData\LocalLow\Nestopi\Chill With You\Player.log
 ```
 
-提交 Issue 时请附带此日志文件，否则可能无法定位问题！
+提交 Issue 时请附带日志文件，否则可能无法定位问题！
 
 ---
-
-## 壁纸引擎模式
-
-EnableWallpaperEngineMode更改为是来启动壁纸引擎模式
-此模式不需要steam授权,并且可以鼠标点击交互
-
-### 关于时长和成就
-- **无法获取时长**
-- **缓存的成就**
-
-壁纸引擎模式会缓存成就到本地,当在线启动之后会自动从缓存的成就尝试为steam解锁,但是需要设置OfflineUserId为你的steamid.就是你的steam存档名.在C:\Users\kevin\AppData\LocalLow\Nestopi\Chill With You\SaveData\Release\v2
-
-你的steam安装的游戏也需要安装此插件,并且没有开启壁纸引擎模式,才会尝试从缓存同步成就
 
 ## ✨ 主要功能
 
@@ -59,51 +49,87 @@ EnableWallpaperEngineMode更改为是来启动壁纸引擎模式
 ### 1. 安装 BepInEx
 
 1. 下载 [BepInEx 5.x](https://github.com/BepInEx/BepInEx/releases)
-2. 解压到 Wallpaper Engine 项目目录：
+2. 解压到 游戏exe 所在目录：
    ```
-   wallpaper_engine\projects\myprojects\chill_with_you\
+   # steam 安装
+   steamapps\common\Chill with You Lo-Fi Story
+   # 壁纸引擎项目
+   wallpaper_engine\projects\myprojects\chill_with_you
    ```
-3. 运行一次游戏以生成 BepInEx 配置文件
 
 ### 2. 安装 ChillPatcher 插件
 
-1. 从 [Releases](../../releases) 下载最新的 `ChillPatcher.dll`
-2. 将 `ChillPatcher.dll` 复制到：
+1. 从 [Releases](../../releases) 下载最新的 `ChillPatcher.zip`
+2. 将 `ChillPatcher.zip` 中的文件夹`ChillPatcher`解压复制到：
    ```
+   # steam 安装
+   steamapps\common\Chill with You Lo-Fi Story\BepInEx\plugins\
+   # 壁纸引擎项目
    wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\plugins\
    ```
 
 ### 3. 完成！
 
-安装完成后，游戏将自动：
-- 绕过 Steam 验证
-- 使用离线用户 ID 创建存档
-- 支持在桌面激活时捕获键盘输入
+## **FLAC 支持说明**
+
+- **原游戏问题**：原游戏的音频类型识别仅对 `.mp3`/`.wav` 有明确处理，Unity 对运行时 `.flac` 的支持有限。
+  - ❌ 采样率可能错误识别（导致播放速度不对）
+  - ❌ 某些平台不支持 FLAC
+  - ❌ 行为不一致（Windows Editor 可用，Standalone 可能失败）
+
+- **插件如何解决**：本插件包含一个基于 `dr_flac` 的原生解码器（`NativePlugins/FlacDecoder`），并通过 Harmony 补丁拦截游戏的音频加载流程：
+  - 当启用扩展格式（`EnableExtendedFormats`）且遇到 `.flac` 文件时，插件会优先使用原生解码器进行流式解码和播放（使用 `AudioClip.Create(..., stream: true)` + PCM 回调）。
+  - 原生解码器导出流式 API（`OpenFlacStream` / `ReadFlacFrames` / `SeekFlacStream` / `CloseFlacStream`），托管层通过 `Native/FlacDecoder.cs` 的 `FlacStreamReader` 进行安全封装，保证低内存占用与可 seek 行为。
+
+更多详细信息和构建选项请参见 [FlacDecoder](NativePlugins/FlacDecoder/README.md)。
 
 ## ⚙️ 配置选项
 
-配置文件位于：`BepInEx\config\com.chillpatcher.plugin.cfg`
+配置文件位于：`<游戏目录>\BepInEx\config\com.chillpatcher.plugin.cfg`
 
-### UI 框架功能
+### 壁纸引擎模式
+
+EnableWallpaperEngineMode更改为是来启动壁纸引擎模式
+此模式不需要steam授权,并且可以鼠标点击交互
+
+#### 关于时长和成就
+- **无法获取steam游戏时长**
+- **缓存的成就**
+
+壁纸引擎模式会缓存成就到本地,当在线启动之后会自动从缓存的成就尝试为steam解锁,但是需要设置OfflineUserId为你的steamid.就是你的steam存档名.在
+
+```
+C:\Users\<你的用户名>\AppData\LocalLow\Nestopi\Chill With You\SaveData\Release\v2
+```
+
+你的steam安装的游戏也需要安装此插件,并且没有开启壁纸引擎模式,才会尝试从缓存同步成就
+
+### 框架功能
 
 ```ini
 [Features]
 
+## 无限的歌曲导入(不开也可以用文件夹无限导入,用于破解官方导入限制)
+## 可能影响存档兼容性
 ## Enable unlimited song import (may affect save compatibility)
 # Setting type: Boolean
 # Default value: false
 EnableUnlimitedSongs = false
 
+## 不限歌曲导入格式(不开也可以用文件夹导入,用于破解官方导入限制)
+## 可能影响存档兼容性
 ## Enable extended audio formats (OGG, FLAC, AIFF)
 # Setting type: Boolean
 # Default value: false
 EnableExtendedFormats = false
 
+## 虚拟滚动
 ## Enable virtual scrolling for better performance
 # Setting type: Boolean
 # Default value: true
 EnableVirtualScroll = true
 
+## 文件夹导入功能
 ## Enable folder-based playlists (runtime only, not saved)
 # Setting type: Boolean
 # Default value: true
@@ -227,6 +253,9 @@ playlist/
 - 不删除标志文件时，使用缓存快速加载
 
 ### 语言设置
+
+不重要,仅无存档时生效
+
 ```ini
 [Language]
 ## 默认游戏语言
@@ -246,6 +275,14 @@ DefaultLanguage = 3
 ## 修改此值可以使用不同的存档槽位，或读取原Steam用户的存档
 ## 例如：将其改为你的 Steam ID 可以访问原来的存档
 OfflineUserId = OfflineUser
+
+## 是否使用多存档功能
+## true = 使用配置的离线用户ID作为存档路径，可以切换不同存档
+## false = 使用Steam ID作为存档路径（默认）
+## 注意：启用后即使不在壁纸引擎模式下也会使用配置的存档路径
+# Setting type: Boolean
+# Default value: false
+UseMultipleSaveSlots = false
 ```
 
 **如何使用原 Steam 存档？**
@@ -256,6 +293,7 @@ OfflineUserId = OfflineUser
 
 **如何使用多个存档槽位？**
 
+- 开启 `UseMultipleSaveSlots = true`
 - 不同的 `OfflineUserId` 对应不同的存档
 - 例如：`OfflineUserId = Save1`、`OfflineUserId = Save2`
 
@@ -287,6 +325,21 @@ MessageLoopInterval = 1
 [InputMethod]
 ## 是否启用RIME中文输入法
 EnableRimeInputMethod = true
+
+## Rime共享数据目录路径（Schema配置文件）
+## 留空则自动查找，优先级：
+## 1. BepInEx/plugins/ChillPatcher/rime-data/shared
+## 2. %AppData%/Rime
+## 3. 此配置指定的自定义路径
+# Setting type: String
+# Default value: 
+SharedDataPath = 
+
+## Rime用户数据目录路径（词库、用户配置）
+## 留空则使用：BepInEx/plugins/ChillPatcher/rime-data/user
+# Setting type: String
+# Default value: 
+UserDataPath = 
 ```
 
 ## 🖥️ Wallpaper Engine 使用说明
@@ -432,29 +485,6 @@ dotnet build
 bin/Debug/ChillPatcher.dll
 ```
 
-## 📝 技术细节
-
-### 核心补丁
-
-1. **SteamAPIPatch**：绕过 Steam 初始化，防止启动死锁
-2. **LanguagePatch**：自定义默认语言设置
-3. **KeyboardHookPatch**：全局键盘钩子，捕获桌面输入
-4. **AchievementsPatch**：禁用 Steam 成就系统
-5. **EventBrokerPatch**：防止 Steam 事件代理异常
-
-### 键盘钩子原理
-
-使用 Windows 底层键盘钩子 (WH_KEYBOARD_LL) 捕获全局键盘事件：
-- 检测前台窗口是否为桌面 (Progman/WorkerW/SysListView32)
-- 捕获键盘输入并加入队列
-- 在 TMP_InputField.LateUpdate 时注入字符
-
-### 退出清理机制
-
-- 使用 `PeekMessage` 非阻塞消息循环
-- 监听 `OnApplicationQuit()` 事件清理钩子
-- 捕获 `ThreadAbortException` 防止退出报错
-
 ## ❓ 常见问题
 
 ### Q: 游戏启动白屏/卡住？
@@ -470,11 +500,11 @@ A: 确保：
 A: 最新版本已修复此问题。如果仍有问题，请查看日志中的 `[KeyboardHook]` 信息。
 
 ### Q: 如何禁用桌面输入功能？
-A: 暂不支持配置禁用。如需禁用，请移除 `ChillPatcher.dll` 插件。
+A: 暂不支持配置禁用。如需禁用，请移除 `ChillPatcher` 插件，输入法可以禁用。
 
 ## 📜 许可证
 
-本项目采用 **GPL v3** 许可证,因为它使用了以下开源组件:
+本项目采用 **GPL v3** 许可证:
 
 - **librime** ([中州韵输入法引擎](https://github.com/rime/librime)) - BSD 3-Clause License
 - **BepInEx** - LGPL 2.1 License
