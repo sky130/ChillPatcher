@@ -181,12 +181,29 @@ namespace ChillPatcher.Patches
                     }
                 }
                 
-                // 7. 隐藏 BottomBackImage
-                var bottomBackImage = GameObject.Find(ButtonPaths.BottomBackImage);
-                if (bottomBackImage != null)
+                // 7. 根据配置处理 BottomBackImage
+                if (UIFrameworkConfig.HideBottomBackImage.Value)
                 {
-                    bottomBackImage.SetActive(false);
-                    Logger.LogInfo("已隐藏 BottomBackImage");
+                    var bottomBackImage = GameObject.Find(ButtonPaths.BottomBackImage);
+                    if (bottomBackImage != null)
+                    {
+                        // 先禁用所有渲染组件
+                        var images = bottomBackImage.GetComponentsInChildren<Image>(true);
+                        foreach (var img in images)
+                        {
+                            img.enabled = false;
+                        }
+                        
+                        var canvasGroup = bottomBackImage.GetComponent<CanvasGroup>();
+                        if (canvasGroup != null)
+                        {
+                            canvasGroup.alpha = 0f;
+                            canvasGroup.blocksRaycasts = false;
+                            canvasGroup.interactable = false;
+                        }
+                        
+                        Logger.LogInfo("已隐藏 BottomBackImage");
+                    }
                 }
                 
                 // 8. 移动 IconMusicPlaylist_Button 到 UI_FacilityMusic 上方

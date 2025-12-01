@@ -42,6 +42,12 @@ namespace ChillPatcher
         /// </summary>
         public static ConfigEntry<bool> EnableUIRearrange { get; private set; }
         
+        /// <summary>
+        /// 是否隐藏底部背景图（默认：开启）
+        /// 隐藏音乐控制条的背景图片
+        /// </summary>
+        public static ConfigEntry<bool> HideBottomBackImage { get; private set; }
+        
         // ========== 高级配置 ==========
         
         /// <summary>
@@ -92,6 +98,13 @@ namespace ChillPatcher
                 "EnableUIRearrange",
                 true,  // 默认开启
                 "Rearrange main UI buttons layout"
+            );
+            
+            HideBottomBackImage = config.Bind(
+                "Features",
+                "HideBottomBackImage",
+                false,  // 默认显示
+                "Hide the bottom background image of music control bar"
             );
             
             // 高级配置
