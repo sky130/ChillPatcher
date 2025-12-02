@@ -194,14 +194,23 @@ namespace ChillPatcher.UIFramework.Music
 
                 Logger.LogInfo($"Album '{header.DisplayName}': Artist='{header.Artist}', Enabled={enabledCount}/{albumSongs.Count}, IsOther={header.IsOtherAlbum}");
 
-                // 加载封面（如果启用且不是"其他"专辑）
-                if (loadCovers && !header.IsOtherAlbum && !string.IsNullOrEmpty(header.DirectoryPath))
+                // 加载封面
+                if (loadCovers && !string.IsNullOrEmpty(header.DirectoryPath))
                 {
-                    var songPaths = albumSongs.Select(s => s.songData.FilePath)
-                        .Where(p => !string.IsNullOrEmpty(p))
-                        .ToArray();
-                    
-                    header.CoverImage = await GetCoverLoader().LoadCoverAsync(albumId, header.DirectoryPath, songPaths);
+                    if (header.IsOtherAlbum)
+                    {
+                        // "其他"专辑：只从歌单目录查找图片文件（不搜索音频嵌入封面）
+                        header.CoverImage = await GetCoverLoader().LoadCoverFromDirectoryOnly(albumId, header.DirectoryPath);
+                    }
+                    else
+                    {
+                        // 普通专辑：从目录和音频文件中查找封面
+                        var songPaths = albumSongs.Select(s => s.songData.FilePath)
+                            .Where(p => !string.IsNullOrEmpty(p))
+                            .ToArray();
+                        
+                        header.CoverImage = await GetCoverLoader().LoadCoverAsync(albumId, header.DirectoryPath, songPaths);
+                    }
                 }
 
                 // 添加专辑头

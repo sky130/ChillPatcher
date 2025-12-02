@@ -18,8 +18,6 @@ namespace ChillPatcher.Patches.UIFramework
         [HarmonyPrefix]
         static void Setup_Prefix(MusicPlayListButtons __instance)
         {
-            if (!UIFrameworkConfig.EnableVirtualScroll.Value)
-                return;
 
             try
             {
@@ -46,8 +44,6 @@ namespace ChillPatcher.Patches.UIFramework
         [HarmonyPrefix]
         static bool Start_Prefix(MusicPlayListButtons __instance)
         {
-            if (!UIFrameworkConfig.EnableVirtualScroll.Value)
-                return true; // 不启用虚拟滚动时，执行原方法
 
             try
             {
@@ -87,7 +83,8 @@ namespace ChillPatcher.Patches.UIFramework
         [HarmonyPostfix]
         static void Setup_Postfix(MusicPlayListButtons __instance, GameAudioInfo audioInfo, FacilityMusic facilityMusic)
         {
-            if (!UIFrameworkConfig.EnableVirtualScroll.Value)
+            // 队列模式保留拖动柄
+            if (MusicUI_VirtualScroll_Patch.IsShowingQueue)
                 return;
 
             try

@@ -12,6 +12,15 @@ namespace ChillPatcher.UIFramework.Music
     /// </summary>
     public class MixedVirtualScrollController : IDisposable
     {
+        #region Constants
+        
+        /// <summary>
+        /// 虚拟滚动模式下 RemoveButton 的水平偏移量（负值向左）
+        /// </summary>
+        public const float RemoveButtonOffsetX = -80f;
+        
+        #endregion
+        
         #region Fields
 
         private ScrollRect _scrollRect;
@@ -37,6 +46,7 @@ namespace ChillPatcher.UIFramework.Music
         private float _lastScrollPosition = 0f;
         private bool _isInitialized = false;
         private int _bufferCount = 3;
+        private bool _isPaused = false;
 
         #endregion
 
@@ -49,6 +59,15 @@ namespace ChillPatcher.UIFramework.Music
         {
             get => _bufferCount;
             set => _bufferCount = value;
+        }
+        
+        /// <summary>
+        /// 是否暂停虚拟滚动（用于队列模式）
+        /// </summary>
+        public bool IsPaused
+        {
+            get => _isPaused;
+            set => _isPaused = value;
         }
 
         #endregion
@@ -133,6 +152,10 @@ namespace ChillPatcher.UIFramework.Music
         /// </summary>
         public void RefreshVisible()
         {
+            // 如果暂停（队列模式），不执行刷新
+            if (_isPaused)
+                return;
+                
             if (!_isInitialized || _items.Count == 0)
                 return;
 
@@ -341,8 +364,38 @@ namespace ChillPatcher.UIFramework.Music
 
             button.Setup(item.SongInfo, _facilityMusic);
             PositionItem(go.GetComponent<RectTransform>(), index, item.Height);
+            
+            // 应用 RemoveButton 水平偏移
+            ApplyRemoveButtonOffset(go.transform);
 
             _activeSongItems[index] = button;
+        }
+        
+        /// <summary>
+        /// 应用 RemoveButton 的水平偏移
+        /// </summary>
+        private void ApplyRemoveButtonOffset(Transform songItemTransform)
+        {
+            if (Mathf.Abs(RemoveButtonOffsetX) < 0.001f)
+                return;
+
+            // 路径: PlayListMusicPlayButton/RemoveButton
+            var playButtonTransform = songItemTransform.Find("PlayListMusicPlayButton");
+            if (playButtonTransform == null)
+                return;
+
+            var removeButtonTransform = playButtonTransform.Find("RemoveButton");
+            if (removeButtonTransform == null)
+                return;
+
+            var rectTransform = removeButtonTransform as RectTransform;
+            if (rectTransform == null)
+                return;
+
+            // 应用水平偏移
+            var pos = rectTransform.anchoredPosition;
+            pos.x += RemoveButtonOffsetX;
+            rectTransform.anchoredPosition = pos;
         }
 
         /// <summary>
@@ -392,6 +445,14 @@ namespace ChillPatcher.UIFramework.Music
             _contentTransform.sizeDelta = new Vector2(currentWidth, _totalHeight);
         }
 
+        /// <summary>
+        /// 清空所有活动项（公开方法，供外部调用）
+        /// </summary>
+        public void ClearAllItems()
+        {
+            ClearAllActiveItems();
+        }
+        
         /// <summary>
         /// 清空所有活动项
         /// </summary>

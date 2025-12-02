@@ -47,7 +47,7 @@ namespace ChillPatcher
             
             // 输出配置状态
             Logger.LogInfo("==== ChillPatcher Configuration ====");
-            Logger.LogInfo($"Virtual Scroll: {(UIFrameworkConfig.EnableVirtualScroll.Value ? "ON" : "OFF")} (Performance optimization)");
+            Logger.LogInfo($"Virtual Scroll: ALWAYS ON (Performance optimization)");
             Logger.LogInfo($"Album Art Display: {(UIFrameworkConfig.EnableAlbumArtDisplay.Value ? "ON" : "OFF")} (Show cover on button)");
             Logger.LogInfo($"Folder Playlists: {(PluginConfig.EnableFolderPlaylists.Value ? "ON" : "OFF")} (Runtime only)");
             Logger.LogInfo($"Unlimited Songs: {(UIFrameworkConfig.EnableUnlimitedSongs.Value ? "ON" : "OFF")} (May affect save)");

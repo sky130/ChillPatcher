@@ -1,9 +1,40 @@
 using BepInEx.Configuration;
+using System.Collections.Generic;
 
 namespace ChillPatcher
 {
     public static class PluginConfig
     {
+        // 配置分区版本号 - 用于自动重置过期配置
+        // 当分区默认值发生变化时，增加对应版本号，旧配置会被重置为新默认值
+        private static readonly Dictionary<string, int> SectionVersions = new Dictionary<string, int>
+        {
+            { "Language", 1 },
+            { "SaveData", 1 },
+            { "DLC", 1 },
+            { "Steam", 1 },
+            { "SaveSlot", 1 },
+            { "Achievement", 1 },
+            { "Keyboard", 1 },
+            { "Rime", 1 },
+            { "Playlist", 1 },
+            { "UI", 2 },        // v2: TagDropdownHeightOffset 默认值从50改为80
+            { "Maintenance", 1 }
+        };
+        
+        // 配置版本存储
+        private static ConfigEntry<int> _languageVersion;
+        private static ConfigEntry<int> _saveDataVersion;
+        private static ConfigEntry<int> _dlcVersion;
+        private static ConfigEntry<int> _steamVersion;
+        private static ConfigEntry<int> _saveSlotVersion;
+        private static ConfigEntry<int> _achievementVersion;
+        private static ConfigEntry<int> _keyboardVersion;
+        private static ConfigEntry<int> _rimeVersion;
+        private static ConfigEntry<int> _playlistVersion;
+        private static ConfigEntry<int> _uiVersion;
+        private static ConfigEntry<int> _maintenanceVersion;
+
         // 语言设置
         public static ConfigEntry<int> DefaultLanguage { get; private set; }
 
@@ -40,9 +71,21 @@ namespace ChillPatcher
         public static ConfigEntry<float> TagDropdownHeightOffset { get; private set; }
         public static ConfigEntry<int> MaxTagsInTitle { get; private set; }
         public static ConfigEntry<bool> CleanInvalidMusicData { get; private set; }
+        
+        // 配置文件引用（用于版本重置）
+        private static ConfigFile _configFile;
 
         public static void Initialize(ConfigFile config)
         {
+            _configFile = config;
+            
+            // 先加载所有分区版本号
+            LoadSectionVersions(config);
+            
+            // 检查并重置过期分区
+            CheckAndResetOutdatedSections(config);
+            
+            // 加载实际配置
             // 语言设置 - 使用枚举值
             DefaultLanguage = config.Bind(
                 "Language",
@@ -230,12 +273,12 @@ namespace ChillPatcher
             TagDropdownHeightOffset = config.Bind(
                 "UI",
                 "TagDropdownHeightOffset",
-                50f,
+                80f,
                 new ConfigDescription(
                     "Tag下拉框高度偏移量（常数b，单位：像素）\n" +
-                    "计算公式：最终高度 = a × 内容实际高度 + b\n" +
-                    "默认：0（无偏移）\n" +
-                    "示例：50 = 增加50像素, -50 = 减少50像素",
+                    "计算公式：最终高度 = a × (按钮数 × 45) + b\n" +
+                    "默认：80\n" +
+                    "示例：100 = 增加偏移, 50 = 减少偏移",
                     new AcceptableValueRange<float>(-500f, 500f)
                 )
             );
@@ -280,6 +323,144 @@ namespace ChillPatcher
             Plugin.Logger.LogInfo($"  - 启用缓存: {EnablePlaylistCache.Value}");
             Plugin.Logger.LogInfo($"  - 隐藏空Tag: {HideEmptyTags.Value}");
             Plugin.Logger.LogInfo($"  - Tag下拉框高度: a={TagDropdownHeightMultiplier.Value}, b={TagDropdownHeightOffset.Value}");
+        }
+        
+        /// <summary>
+        /// 加载所有分区版本号
+        /// </summary>
+        private static void LoadSectionVersions(ConfigFile config)
+        {
+            // 先检查哪些版本条目在配置文件中不存在（表示是旧配置）
+            // 对于这些不存在的版本条目，如果当前版本不是1，就需要重置
+            
+            var versionDefinitions = new Dictionary<string, ConfigDefinition>
+            {
+                { "Language", new ConfigDefinition("_Version", "Language") },
+                { "SaveData", new ConfigDefinition("_Version", "SaveData") },
+                { "DLC", new ConfigDefinition("_Version", "DLC") },
+                { "Steam", new ConfigDefinition("_Version", "Steam") },
+                { "SaveSlot", new ConfigDefinition("_Version", "SaveSlot") },
+                { "Achievement", new ConfigDefinition("_Version", "Achievement") },
+                { "Keyboard", new ConfigDefinition("_Version", "Keyboard") },
+                { "Rime", new ConfigDefinition("_Version", "Rime") },
+                { "Playlist", new ConfigDefinition("_Version", "Playlist") },
+                { "UI", new ConfigDefinition("_Version", "UI") },
+                { "Maintenance", new ConfigDefinition("_Version", "Maintenance") }
+            };
+            
+            // 记录缺失的版本条目（需要按当前版本是否>1来决定是否重置）
+            _missingSectionVersions.Clear();
+            foreach (var kvp in versionDefinitions)
+            {
+                bool exists = false;
+                foreach (var key in config.Keys)
+                {
+                    if (key.Section == kvp.Value.Section && key.Key == kvp.Value.Key)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                
+                if (!exists && SectionVersions[kvp.Key] > 1)
+                {
+                    _missingSectionVersions.Add(kvp.Key);
+                    Plugin.Logger.LogInfo($"[Config] 检测到缺失版本条目且当前版本>1: {kvp.Key} (v{SectionVersions[kvp.Key]})");
+                }
+            }
+            
+            // 现在绑定版本号（会为缺失的创建默认值）
+            _languageVersion = config.Bind("_Version", "Language", SectionVersions["Language"], "配置分区版本号（请勿手动修改）");
+            _saveDataVersion = config.Bind("_Version", "SaveData", SectionVersions["SaveData"], "配置分区版本号（请勿手动修改）");
+            _dlcVersion = config.Bind("_Version", "DLC", SectionVersions["DLC"], "配置分区版本号（请勿手动修改）");
+            _steamVersion = config.Bind("_Version", "Steam", SectionVersions["Steam"], "配置分区版本号（请勿手动修改）");
+            _saveSlotVersion = config.Bind("_Version", "SaveSlot", SectionVersions["SaveSlot"], "配置分区版本号（请勿手动修改）");
+            _achievementVersion = config.Bind("_Version", "Achievement", SectionVersions["Achievement"], "配置分区版本号（请勿手动修改）");
+            _keyboardVersion = config.Bind("_Version", "Keyboard", SectionVersions["Keyboard"], "配置分区版本号（请勿手动修改）");
+            _rimeVersion = config.Bind("_Version", "Rime", SectionVersions["Rime"], "配置分区版本号（请勿手动修改）");
+            _playlistVersion = config.Bind("_Version", "Playlist", SectionVersions["Playlist"], "配置分区版本号（请勿手动修改）");
+            _uiVersion = config.Bind("_Version", "UI", SectionVersions["UI"], "配置分区版本号（请勿手动修改）");
+            _maintenanceVersion = config.Bind("_Version", "Maintenance", SectionVersions["Maintenance"], "配置分区版本号（请勿手动修改）");
+        }
+        
+        // 记录缺失的版本条目（版本>1需要重置）
+        private static List<string> _missingSectionVersions = new List<string>();
+        
+        /// <summary>
+        /// 检查并重置过期分区配置
+        /// </summary>
+        private static void CheckAndResetOutdatedSections(ConfigFile config)
+        {
+            var sectionsToReset = new List<string>();
+            
+            // 添加版本条目缺失且当前版本>1的分区（旧配置需要重置）
+            sectionsToReset.AddRange(_missingSectionVersions);
+            
+            // 检查每个分区的版本（版本存在但小于当前版本）
+            if (_languageVersion.Value < SectionVersions["Language"] && !sectionsToReset.Contains("Language")) sectionsToReset.Add("Language");
+            if (_saveDataVersion.Value < SectionVersions["SaveData"] && !sectionsToReset.Contains("SaveData")) sectionsToReset.Add("SaveData");
+            if (_dlcVersion.Value < SectionVersions["DLC"] && !sectionsToReset.Contains("DLC")) sectionsToReset.Add("DLC");
+            if (_steamVersion.Value < SectionVersions["Steam"] && !sectionsToReset.Contains("Steam")) sectionsToReset.Add("Steam");
+            if (_saveSlotVersion.Value < SectionVersions["SaveSlot"] && !sectionsToReset.Contains("SaveSlot")) sectionsToReset.Add("SaveSlot");
+            if (_achievementVersion.Value < SectionVersions["Achievement"] && !sectionsToReset.Contains("Achievement")) sectionsToReset.Add("Achievement");
+            if (_keyboardVersion.Value < SectionVersions["Keyboard"] && !sectionsToReset.Contains("Keyboard")) sectionsToReset.Add("Keyboard");
+            if (_rimeVersion.Value < SectionVersions["Rime"] && !sectionsToReset.Contains("Rime")) sectionsToReset.Add("Rime");
+            if (_playlistVersion.Value < SectionVersions["Playlist"] && !sectionsToReset.Contains("Playlist")) sectionsToReset.Add("Playlist");
+            if (_uiVersion.Value < SectionVersions["UI"] && !sectionsToReset.Contains("UI")) sectionsToReset.Add("UI");
+            if (_maintenanceVersion.Value < SectionVersions["Maintenance"] && !sectionsToReset.Contains("Maintenance")) sectionsToReset.Add("Maintenance");
+            
+            if (sectionsToReset.Count > 0)
+            {
+                Plugin.Logger.LogInfo($"[Config] 检测到 {sectionsToReset.Count} 个配置分区需要重置: {string.Join(", ", sectionsToReset)}");
+                
+                // 收集需要删除的键
+                var keysToRemove = new List<ConfigDefinition>();
+                foreach (var key in config.Keys)
+                {
+                    if (sectionsToReset.Contains(key.Section))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+                
+                // 删除过期的配置项（触发重新绑定时使用默认值）
+                foreach (var key in keysToRemove)
+                {
+                    config.Remove(key);
+                    Plugin.Logger.LogDebug($"[Config] 移除过期配置: [{key.Section}] {key.Key}");
+                }
+                
+                // 更新版本号
+                foreach (var section in sectionsToReset)
+                {
+                    UpdateSectionVersion(section);
+                }
+                
+                // 保存配置文件
+                config.Save();
+                Plugin.Logger.LogInfo("[Config] 配置分区已重置为默认值");
+            }
+        }
+        
+        /// <summary>
+        /// 更新指定分区的版本号
+        /// </summary>
+        private static void UpdateSectionVersion(string section)
+        {
+            switch (section)
+            {
+                case "Language": _languageVersion.Value = SectionVersions["Language"]; break;
+                case "SaveData": _saveDataVersion.Value = SectionVersions["SaveData"]; break;
+                case "DLC": _dlcVersion.Value = SectionVersions["DLC"]; break;
+                case "Steam": _steamVersion.Value = SectionVersions["Steam"]; break;
+                case "SaveSlot": _saveSlotVersion.Value = SectionVersions["SaveSlot"]; break;
+                case "Achievement": _achievementVersion.Value = SectionVersions["Achievement"]; break;
+                case "Keyboard": _keyboardVersion.Value = SectionVersions["Keyboard"]; break;
+                case "Rime": _rimeVersion.Value = SectionVersions["Rime"]; break;
+                case "Playlist": _playlistVersion.Value = SectionVersions["Playlist"]; break;
+                case "UI": _uiVersion.Value = SectionVersions["UI"]; break;
+                case "Maintenance": _maintenanceVersion.Value = SectionVersions["Maintenance"]; break;
+            }
         }
     }
 }

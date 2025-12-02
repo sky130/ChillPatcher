@@ -203,17 +203,17 @@ namespace ChillPatcher.UIFramework.Audio
             // 清理数据库中此歌单的过时数据
             CleanupStaleData(existingByPath);
 
-            // 1. 扫描根目录的歌曲（归入"其他"专辑）
+            // 1. 扫描根目录的歌曲（归入"其他"专辑，显示歌单名称）
             var otherAlbumId = Id + OTHER_ALBUM_SUFFIX;
             var rootSongs = await ScanDirectoryForSongs(_directoryPath, otherAlbumId, existingByPath, 0);
             
             if (rootSongs.Count > 0)
             {
-                // 保存"其他"专辑到数据库
-                db?.GetDatabase()?.SaveAlbum(otherAlbumId, Id, _directoryPath, "其他", true);
+                // 保存"其他"专辑到数据库，使用歌单的 DisplayName 而非"其他"
+                db?.GetDatabase()?.SaveAlbum(otherAlbumId, Id, _directoryPath, DisplayName, true);
                 _registeredAlbumIds.Add(otherAlbumId);
                 allSongs.AddRange(rootSongs);
-                logger.LogInfo($"[Playlist] '其他'专辑: {rootSongs.Count} 首歌曲");
+                logger.LogInfo($"[Playlist] '{DisplayName}' 专辑 (根目录歌曲): {rootSongs.Count} 首歌曲");
             }
 
             // 2. 扫描子目录作为专辑

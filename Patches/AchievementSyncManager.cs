@@ -142,7 +142,7 @@ namespace ChillPatcher.Patches
                     }
                     catch (Exception ex)
                     {
-                        Plugin.Logger.LogError($"[AchievementSync] 同步成就 {kvp.Key} 时出错: {ex.Message}");
+                        Plugin.Logger.LogWarning($"[AchievementSync] 同步成就 {kvp.Key} 时出错: {ex.Message}");
                         failedCount++;
                     }
                 }

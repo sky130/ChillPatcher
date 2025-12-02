@@ -23,8 +23,6 @@ namespace ChillPatcher.Patches.UIFramework
         [HarmonyPatch(nameof(MusicPlayListButtons.Setup))]
         public static void Setup_Postfix(MusicPlayListButtons __instance)
         {
-            if (!UIFrameworkConfig.EnableVirtualScroll.Value)
-                return;
 
             try
             {

@@ -62,6 +62,20 @@ namespace ChillPatcher.Patches.UIFramework
                 return true;
             }
         }
+        
+        /// <summary>
+        /// Postfix for ExcludeFromPlaylist - 原生Tag排除成功后触发事件
+        /// </summary>
+        [HarmonyPatch("ExcludeFromPlaylist")]
+        [HarmonyPostfix]
+        static void ExcludeFromPlaylist_Postfix(GameAudioInfo gameAudioInfo, bool __result)
+        {
+            // 只在原方法成功执行后触发（非自定义Tag的情况）
+            if (__result && !ChillPatcher.UIFramework.Data.CustomPlaylistDataManager.IsCustomTag(gameAudioInfo.Tag))
+            {
+                OnSongExcludedChanged?.Invoke(gameAudioInfo.UUID, true);
+            }
+        }
 
         /// <summary>
         /// Patch IncludeInPlaylist - 重新包含歌曲

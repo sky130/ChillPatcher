@@ -3,18 +3,34 @@ using System.Collections.Generic;
 using System.Linq;
 using Bulbul;
 using ChillPatcher.UIFramework.Music;
+using Cysharp.Threading.Tasks;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 namespace ChillPatcher.Patches.UIFramework
 {
     /// <summary>
-    /// MusicTagListUI补丁：隐藏空Tag + 自定义Tag
+    /// MusicTagListUI补丁：隐藏空Tag + 自定义Tag + 队列操作按钮
     /// </summary>
     [HarmonyPatch(typeof(MusicTagListUI))]
     public class MusicTagListUI_Patches
     {
         private static List<GameObject> _customTagButtons = new List<GameObject>();
+        
+        // 队列操作按钮
+        private static GameObject _clearAllQueueButton;
+        private static GameObject _clearFutureQueueButton;
+        private static GameObject _clearHistoryButton;
+        
+        // TodoSwitchFinishButton 缓存
+        private static GameObject _todoSwitchFinishButton;
+        private static bool _todoSwitchFinishButtonWasActive = false;
+        
+        // 缓存的原始状态
+        private static MusicTagListUI _cachedTagListUI;
+        private static bool _isQueueMode = false;
 
         /// <summary>
         /// Setup后处理：隐藏空Tag + 添加自定义Tag按钮
@@ -42,10 +58,105 @@ namespace ChillPatcher.Patches.UIFramework
                 {
                     UpdateDropdownHeight(__instance);
                 }
+                
+                // 4. 打印按钮高度调试信息
+                DebugPrintButtonHeights(__instance);
             }
             catch (System.Exception ex)
             {
                 Plugin.Log.LogError($"Error in MusicTagListUI_Patches.Setup_Postfix: {ex}");
+            }
+        }
+        
+        /// <summary>
+        /// 打印按钮高度调试信息（延迟执行以确保布局已更新）
+        /// </summary>
+        private static void DebugPrintButtonHeights(MusicTagListUI tagListUI)
+        {
+            // 延迟执行
+            DebugPrintButtonHeightsAsync(tagListUI).Forget();
+        }
+        
+        private static async UniTaskVoid DebugPrintButtonHeightsAsync(MusicTagListUI tagListUI)
+        {
+            // 等待2帧让布局更新
+            await UniTask.DelayFrame(2);
+            
+            try
+            {
+                var pulldown = Traverse.Create(tagListUI).Field("_pulldown").GetValue<PulldownListUI>();
+                if (pulldown == null) return;
+                
+                var pullDownParentRect = Traverse.Create(pulldown).Field("_pullDownParentRect").GetValue<RectTransform>();
+                if (pullDownParentRect == null) return;
+                
+                var tagListContainer = pullDownParentRect.Find("TagList");
+                if (tagListContainer == null) return;
+                
+                // 强制刷新布局
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(tagListContainer as RectTransform);
+                
+                var layout = tagListContainer.GetComponent<VerticalLayoutGroup>();
+                if (layout != null)
+                {
+                    Plugin.Log.LogInfo($"[DebugLayout] VerticalLayoutGroup: spacing={layout.spacing}, padding=(T:{layout.padding.top}, B:{layout.padding.bottom}, L:{layout.padding.left}, R:{layout.padding.right})");
+                }
+                
+                // 使用ContentSizeFitter的preferredSize
+                var contentSizeFitter = tagListContainer.GetComponent<ContentSizeFitter>();
+                if (contentSizeFitter != null)
+                {
+                    var layoutElement = tagListContainer.GetComponent<LayoutElement>();
+                    Plugin.Log.LogInfo($"[DebugLayout] ContentSizeFitter found, mode: H={contentSizeFitter.horizontalFit}, V={contentSizeFitter.verticalFit}");
+                }
+                
+                var buttons = Traverse.Create(tagListUI).Field("buttons").GetValue<MusicTagListButton[]>();
+                if (buttons != null && buttons.Length >= 2)
+                {
+                    // 统计可见按钮
+                    var visibleButtons = buttons.Where(b => b != null && b.gameObject.activeSelf).ToArray();
+                    Plugin.Log.LogInfo($"[DebugLayout] Total buttons: {buttons.Length}, Visible: {visibleButtons.Length}");
+                    
+                    if (visibleButtons.Length >= 2)
+                    {
+                        var btn1 = visibleButtons[0];
+                        var btn2 = visibleButtons[1];
+                        
+                        var rect1 = btn1.GetComponent<RectTransform>();
+                        var rect2 = btn2.GetComponent<RectTransform>();
+                        
+                        if (rect1 != null && rect2 != null)
+                        {
+                            Plugin.Log.LogInfo($"[DebugLayout] Button1 '{btn1.name}': position={rect1.anchoredPosition}, size={rect1.rect.size}, localPos={rect1.localPosition}");
+                            Plugin.Log.LogInfo($"[DebugLayout] Button2 '{btn2.name}': position={rect2.anchoredPosition}, size={rect2.rect.size}, localPos={rect2.localPosition}");
+                            
+                            // 计算实际高度差（Y坐标差值的绝对值）
+                            float heightDiff = Mathf.Abs(rect1.localPosition.y - rect2.localPosition.y);
+                            Plugin.Log.LogInfo($"[DebugLayout] Height difference between buttons: {heightDiff}");
+                            
+                            // 计算真实按钮高度（包含spacing）
+                            float buttonHeight = rect1.rect.height;
+                            Plugin.Log.LogInfo($"[DebugLayout] Single button height: {buttonHeight}");
+                            Plugin.Log.LogInfo($"[DebugLayout] Effective row height (button + spacing): {heightDiff}");
+                        }
+                    }
+                }
+                
+                // 打印TagList容器的实际大小
+                var tagListRect = tagListContainer as RectTransform;
+                if (tagListRect != null)
+                {
+                    Plugin.Log.LogInfo($"[DebugLayout] TagList container size: {tagListRect.rect.size}, sizeDelta: {tagListRect.sizeDelta}");
+                }
+                
+                // 打印原始下拉框高度设置
+                float openHeight = Traverse.Create(pulldown).Field("_openPullDownSizeDeltaY").GetValue<float>();
+                Plugin.Log.LogInfo($"[DebugLayout] Original _openPullDownSizeDeltaY: {openHeight}");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogError($"[DebugLayout] Error: {ex.Message}");
             }
         }
 
@@ -317,9 +428,11 @@ namespace ChillPatcher.Patches.UIFramework
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(contentTransform as UnityEngine.RectTransform);
 
             // ✅ 直接根据按钮数量计算内容高度
-            const float buttonHeight = 50f;  // 每个按钮的高度
+            // 实测数据: 按钮高度=45
+            const float buttonHeight = 45f;  // 实测按钮高度
             
-            // 应用用户配置的线性公式：finalHeight = a × (按钮数 × 高度) + b
+            // 公式：finalHeight = a × (按钮数 × 高度) + b
+            // a = 系数, b = 用户偏移
             float a = PluginConfig.TagDropdownHeightMultiplier.Value;
             float b = PluginConfig.TagDropdownHeightOffset.Value;
             float finalHeight = a * (totalVisibleButtonCount * buttonHeight) + b;
@@ -329,5 +442,396 @@ namespace ChillPatcher.Patches.UIFramework
 
             Plugin.Log.LogInfo($"Tag dropdown: {a} × ({totalVisibleButtonCount} × {buttonHeight}) + {b} = {finalHeight:F1}");
         }
+        
+        #region 队列模式切换
+        
+        /// <summary>
+        /// 切换到队列模式 - 隐藏Tag显示队列操作按钮
+        /// </summary>
+        public static void SwitchToQueueMode()
+        {
+            if (_isQueueMode) return;
+            _isQueueMode = true;
+            
+            var tagListUI = UnityEngine.Object.FindObjectOfType<MusicTagListUI>();
+            if (tagListUI == null)
+            {
+                Plugin.Log.LogWarning("[TagListUI] Cannot find MusicTagListUI");
+                return;
+            }
+            
+            _cachedTagListUI = tagListUI;
+            
+            // 获取下拉框
+            var pulldown = Traverse.Create(tagListUI).Field("_pulldown").GetValue<PulldownListUI>();
+            if (pulldown == null) return;
+            
+            // 关闭下拉框（如果打开的话）
+            pulldown.ClosePullDown(true);
+            
+            // 更改标题为"队列动作"
+            pulldown.ChangeSelectContentText("队列动作");
+            
+            // 获取Tag按钮容器
+            var pullDownParentRect = Traverse.Create(pulldown).Field("_pullDownParentRect").GetValue<RectTransform>();
+            if (pullDownParentRect == null) return;
+            
+            var tagListContainer = pullDownParentRect.Find("TagList");
+            if (tagListContainer == null) return;
+            
+            // 隐藏 TodoSwitchFinishButton
+            HideTodoSwitchFinishButton(tagListContainer);
+            
+            // 隐藏所有原生Tag按钮
+            var buttons = Traverse.Create(tagListUI).Field("buttons").GetValue<MusicTagListButton[]>();
+            if (buttons != null)
+            {
+                foreach (var btn in buttons)
+                {
+                    if (btn != null)
+                        btn.gameObject.SetActive(false);
+                }
+            }
+            
+            // 隐藏自定义Tag按钮
+            foreach (var btn in _customTagButtons)
+            {
+                if (btn != null)
+                    btn.SetActive(false);
+            }
+            
+            // 创建队列操作按钮（直接添加到容器）
+            CreateQueueButtons(tagListContainer);
+            
+            // 更新下拉框高度（2个按钮）
+            UpdateDropdownHeightForQueueMode(pulldown, 2);
+            
+            Plugin.Log.LogInfo("[TagListUI] Switched to queue mode");
+        }
+        
+        /// <summary>
+        /// 切换回正常模式 - 恢复Tag显示
+        /// </summary>
+        public static void SwitchToNormalMode()
+        {
+            if (!_isQueueMode) return;
+            _isQueueMode = false;
+            
+            var tagListUI = _cachedTagListUI ?? UnityEngine.Object.FindObjectOfType<MusicTagListUI>();
+            if (tagListUI == null) return;
+            
+            // 获取下拉框
+            var pulldown = Traverse.Create(tagListUI).Field("_pulldown").GetValue<PulldownListUI>();
+            if (pulldown == null) return;
+            
+            // 关闭下拉框
+            pulldown.ClosePullDown(true);
+            
+            // 销毁队列操作按钮
+            if (_clearAllQueueButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearAllQueueButton);
+                _clearAllQueueButton = null;
+            }
+            if (_clearFutureQueueButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearFutureQueueButton);
+                _clearFutureQueueButton = null;
+            }
+            if (_clearHistoryButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearHistoryButton);
+                _clearHistoryButton = null;
+            }
+            
+            // 恢复 TodoSwitchFinishButton
+            ShowTodoSwitchFinishButton();
+            
+            // 恢复原生Tag按钮
+            var buttons = Traverse.Create(tagListUI).Field("buttons").GetValue<MusicTagListButton[]>();
+            if (buttons != null)
+            {
+                foreach (var btn in buttons)
+                {
+                    if (btn != null)
+                        btn.gameObject.SetActive(true);
+                }
+            }
+            
+            // 恢复自定义Tag按钮
+            foreach (var btn in _customTagButtons)
+            {
+                if (btn != null)
+                    btn.SetActive(true);
+            }
+            
+            // 重新应用隐藏空Tag
+            if (PluginConfig.HideEmptyTags.Value)
+            {
+                HideEmptyTags(tagListUI);
+            }
+            
+            // 恢复标题
+            tagListUI.SetTitle();
+            
+            // 更新下拉框高度
+            UpdateDropdownHeight(tagListUI);
+            
+            Plugin.Log.LogInfo("[TagListUI] Switched to normal mode");
+        }
+        
+        /// <summary>
+        /// 创建队列操作按钮（克隆原生Tag按钮样式）
+        /// </summary>
+        private static void CreateQueueButtons(Transform container)
+        {
+            // 如果已存在，先销毁
+            if (_clearAllQueueButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearAllQueueButton);
+                _clearAllQueueButton = null;
+            }
+            if (_clearFutureQueueButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearFutureQueueButton);
+                _clearFutureQueueButton = null;
+            }
+            if (_clearHistoryButton != null)
+            {
+                UnityEngine.Object.Destroy(_clearHistoryButton);
+                _clearHistoryButton = null;
+            }
+            
+            // 获取原生按钮作为模板
+            var buttons = Traverse.Create(_cachedTagListUI).Field("buttons").GetValue<MusicTagListButton[]>();
+            if (buttons == null || buttons.Length == 0)
+            {
+                Plugin.Log.LogError("[CreateQueueButtons] No template button found");
+                return;
+            }
+            
+            var templateButton = buttons[0];
+            
+            // 创建"清空全部队列"按钮
+            _clearAllQueueButton = CreateQueueButtonFromTemplate(
+                container,
+                templateButton,
+                "ClearAllQueue",
+                "清空全部队列",
+                OnClearAllQueueClicked
+            );
+            
+            // 创建"清空未来队列"按钮
+            _clearFutureQueueButton = CreateQueueButtonFromTemplate(
+                container,
+                templateButton,
+                "ClearFutureQueue",
+                "清空未来队列",
+                OnClearFutureQueueClicked
+            );
+            
+            // 创建"清空播放历史"按钮
+            _clearHistoryButton = CreateQueueButtonFromTemplate(
+                container,
+                templateButton,
+                "ClearHistory",
+                "清空播放历史",
+                OnClearHistoryClicked
+            );
+            
+            // 强制刷新布局
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(container as RectTransform);
+        }
+        
+        /// <summary>
+        /// 从模板创建队列操作按钮（保持原生样式）
+        /// </summary>
+        private static GameObject CreateQueueButtonFromTemplate(
+            Transform parent, 
+            MusicTagListButton template, 
+            string name,
+            string displayText, 
+            UnityEngine.Events.UnityAction onClick)
+        {
+            // 克隆模板按钮
+            var buttonObj = UnityEngine.Object.Instantiate(template.gameObject, parent);
+            buttonObj.name = name;
+            buttonObj.SetActive(true);
+            
+            // 移除原有的MusicTagListButton行为（我们不需要Tag逻辑）
+            var tagButton = buttonObj.GetComponent<MusicTagListButton>();
+            if (tagButton != null)
+            {
+                UnityEngine.Object.Destroy(tagButton);
+            }
+            
+            // 隐藏复选框（队列操作不需要）
+            var buttonsContainer = buttonObj.transform.Find("Buttons");
+            if (buttonsContainer != null)
+            {
+                var checkBox = buttonsContainer.Find("CheckBox");
+                if (checkBox != null)
+                {
+                    checkBox.gameObject.SetActive(false);
+                }
+                
+                // 查找并修改TagName文本
+                var tagName = buttonsContainer.Find("TagName");
+                if (tagName != null)
+                {
+                    // 获取TMP_Text组件
+                    var tmpText = tagName.GetComponent<TMP_Text>();
+                    if (tmpText != null)
+                    {
+                        // 移除本地化组件（如果有）
+                        var localization = tagName.GetComponent<TextLocalizationBehaviour>();
+                        if (localization != null)
+                        {
+                            UnityEngine.Object.Destroy(localization);
+                        }
+                        
+                        // 设置文本
+                        tmpText.text = displayText;
+                    }
+                }
+            }
+            
+            // 设置点击事件
+            var button = buttonObj.GetComponent<Button>();
+            if (button != null)
+            {
+                // 清除原有监听器
+                button.onClick.RemoveAllListeners();
+                // 添加新的监听器
+                button.onClick.AddListener(onClick);
+            }
+            else
+            {
+                // 如果没有Button组件，添加一个
+                button = buttonObj.AddComponent<Button>();
+                button.onClick.AddListener(onClick);
+            }
+            
+            Plugin.Log.LogInfo($"[CreateQueueButton] Created queue button: {displayText}");
+            return buttonObj;
+        }
+        
+        /// <summary>
+        /// 隐藏 TodoSwitchFinishButton
+        /// </summary>
+        private static void HideTodoSwitchFinishButton(Transform tagListContainer)
+        {
+            // 在 TagList 下搜索所有的 TagCell，找到包含 TodoSwitchFinishButton 的那个
+            foreach (Transform child in tagListContainer)
+            {
+                if (child.name.StartsWith("TagCell"))
+                {
+                    var buttons = child.Find("Buttons");
+                    if (buttons != null)
+                    {
+                        var todoButton = buttons.Find("TodoSwitchFinishButton");
+                        if (todoButton != null)
+                        {
+                            _todoSwitchFinishButton = todoButton.gameObject;
+                            _todoSwitchFinishButtonWasActive = todoButton.gameObject.activeSelf;
+                            todoButton.gameObject.SetActive(false);
+                            Plugin.Log.LogInfo("[TagListUI] Hidden TodoSwitchFinishButton");
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 显示 TodoSwitchFinishButton
+        /// </summary>
+        private static void ShowTodoSwitchFinishButton()
+        {
+            if (_todoSwitchFinishButton != null)
+            {
+                _todoSwitchFinishButton.SetActive(_todoSwitchFinishButtonWasActive);
+                _todoSwitchFinishButton = null;
+                Plugin.Log.LogInfo("[TagListUI] Restored TodoSwitchFinishButton");
+            }
+        }
+        
+        /// <summary>
+        /// 更新队列模式下的下拉框高度（使用与正常模式相同的计算公式）
+        /// </summary>
+        private static void UpdateDropdownHeightForQueueMode(PulldownListUI pulldown, int buttonCount)
+        {
+            // 实测数据: 按钮高度=45
+            const float buttonHeight = 45f;
+            
+            // 公式：finalHeight = a × (按钮数 × 高度) + b
+            float a = PluginConfig.TagDropdownHeightMultiplier.Value;
+            float b = PluginConfig.TagDropdownHeightOffset.Value;
+            float finalHeight = a * (buttonCount * buttonHeight) + b;
+            
+            Traverse.Create(pulldown).Field("_openPullDownSizeDeltaY").SetValue(finalHeight);
+            Plugin.Log.LogInfo($"[QueueMode] Dropdown height: {a} × ({buttonCount} × {buttonHeight}) + {b} = {finalHeight:F1}");
+        }
+        
+        /// <summary>
+        /// 清空全部队列按钮点击
+        /// </summary>
+        private static void OnClearAllQueueClicked()
+        {
+            Plugin.Log.LogInfo("[TagListUI] Clear all queue clicked");
+            
+            // 清空整个队列
+            PlayQueueManager.Instance.Clear();
+            
+            // 从播放列表获取下一首开始播放
+            // 这会触发 AdvanceToNext，从播放列表补充
+            var musicService = Traverse.Create(_cachedTagListUI)
+                .Field("musicService")
+                .GetValue<MusicService>();
+                
+            if (musicService != null)
+            {
+                // 播放下一首（从播放列表位置或随机）
+                musicService.SkipCurrentMusic(MusicChangeKind.Manual).Forget();
+            }
+            
+            // 自动切换回播放列表视图
+            PlayQueueButton_Patch.SwitchToPlaylist();
+        }
+        
+        /// <summary>
+        /// 清空未来队列按钮点击（保留当前播放）
+        /// </summary>
+        private static void OnClearFutureQueueClicked()
+        {
+            Plugin.Log.LogInfo("[TagListUI] Clear future queue clicked");
+            
+            // 只清空待播放的，保留当前播放
+            PlayQueueManager.Instance.ClearPending();
+            
+            // 自动切换回播放列表视图
+            PlayQueueButton_Patch.SwitchToPlaylist();
+        }
+        
+        /// <summary>
+        /// 清空播放历史按钮点击
+        /// </summary>
+        private static void OnClearHistoryClicked()
+        {
+            Plugin.Log.LogInfo("[TagListUI] Clear history clicked");
+            
+            // 清空播放历史
+            PlayQueueManager.Instance.ClearHistory();
+            
+            Plugin.Log.LogInfo("[TagListUI] Play history cleared");
+        }
+        
+        /// <summary>
+        /// 当前是否处于队列模式
+        /// </summary>
+        public static bool IsQueueMode => _isQueueMode;
+        
+        #endregion
     }
 }

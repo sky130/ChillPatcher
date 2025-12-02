@@ -75,8 +75,8 @@ namespace ChillPatcher
             EnableVirtualScroll = config.Bind(
                 "Features",
                 "EnableVirtualScroll",
-                true,  // 默认开启，不影响存档
-                "Enable virtual scrolling for better performance"
+                true,  // [已弃用] 虚拟滚动现在总是启用，此配置不再生效
+                "[Deprecated] Virtual scroll is now always enabled. This setting no longer has any effect."
             );
             
             EnableAlbumArtDisplay = config.Bind(
