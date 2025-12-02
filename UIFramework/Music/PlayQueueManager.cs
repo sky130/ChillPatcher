@@ -88,6 +88,7 @@ namespace ChillPatcher.UIFramework.Music
         
         // 事件
         public event Action OnQueueChanged;
+        public event Action OnHistoryChanged;
         public event Action<GameAudioInfo> OnCurrentChanged;
         public event Action<int> OnPlaylistPositionChanged;
         
@@ -427,6 +428,9 @@ namespace ChillPatcher.UIFramework.Music
                 // 退出历史模式
                 _historyPosition = -1;
             }
+            
+            // 触发历史变化事件
+            OnHistoryChanged?.Invoke();
         }
         
         /// <summary>

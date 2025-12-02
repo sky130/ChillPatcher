@@ -90,6 +90,7 @@ namespace ChillPatcher.UIFramework.Music
         // 事件订阅
         private IDisposable _audioTagSubscription;
         private IDisposable _musicChangeSubscription;
+        private bool _queueEventSubscribed = false;
 
         private PlaybackStateManager()
         {
@@ -145,6 +146,19 @@ namespace ChillPatcher.UIFramework.Music
             _musicChangeSubscription = musicService.OnChangeMusic
                 .Subscribe(_ => OnMusicChanged(musicService));
 
+            // 订阅队列和历史变化事件
+            if (!_queueEventSubscribed)
+            {
+                var queueManager = PlayQueueManager.Instance;
+                if (queueManager != null)
+                {
+                    queueManager.OnQueueChanged += OnQueueChanged;
+                    queueManager.OnHistoryChanged += OnHistoryChanged;
+                    _queueEventSubscribed = true;
+                    Logger.LogInfo("Subscribed to queue/history change events");
+                }
+            }
+
             Logger.LogInfo("Subscribed to music events");
         }
 
@@ -180,10 +194,41 @@ namespace ChillPatcher.UIFramework.Music
             _currentState.IsShuffle = musicService.IsShuffle;
             _currentState.IsRepeatOne = musicService.IsRepeatOneMusic;
 
-            // 保存队列和历史
-            SaveQueueAndHistory();
+            // 队列和历史由 OnQueueChanged 事件负责保存，这里不再重复保存
 
             SaveState();
+        }
+
+        /// <summary>
+        /// 队列变化时保存状态
+        /// </summary>
+        private void OnQueueChanged()
+        {
+            if (_currentState == null)
+            {
+                _currentState = new PlaybackState();
+            }
+
+            SaveQueueAndHistory();
+            SaveState();
+            
+            Logger.LogDebug("Queue changed, state saved");
+        }
+
+        /// <summary>
+        /// 历史变化时保存状态
+        /// </summary>
+        private void OnHistoryChanged()
+        {
+            if (_currentState == null)
+            {
+                _currentState = new PlaybackState();
+            }
+
+            SaveQueueAndHistory();
+            SaveState();
+            
+            Logger.LogDebug("History changed, state saved");
         }
 
         /// <summary>
