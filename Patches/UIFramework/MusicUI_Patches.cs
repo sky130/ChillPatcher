@@ -26,27 +26,27 @@ namespace ChillPatcher.Patches.UIFramework
     {
         private static bool _componentsInitialized = false;
         private static bool _mixedComponentsInitialized = false;
-        
+
         /// <summary>
         /// 是否正在显示队列模式（禁用虚拟滚动，使用原版列表但自定义数据）
         /// </summary>
         public static bool IsShowingQueue { get; set; } = false;
-        
+
         /// <summary>
         /// 是否正在创建队列视图中的按钮（用于阻止原始删除事件绑定）
         /// </summary>
         internal static bool IsCreatingQueueButtons { get; set; } = false;
-        
+
         /// <summary>
         /// 队列模式下要显示的数据（直接使用 PlayQueueManager 作为数据源）
         /// </summary>
         public static IReadOnlyList<GameAudioInfo> QueueDataSource => PlayQueueManager.Instance.Queue;
-        
+
         /// <summary>
         /// 队列项目被移除时的事件（参数: UUID）
         /// </summary>
         public static event Action<string> OnQueueItemRemoved;
-        
+
         /// <summary>
         /// 队列项目被重排时的事件（参数: 新的UUID列表）
         /// </summary>
@@ -60,7 +60,6 @@ namespace ChillPatcher.Patches.UIFramework
         [HarmonyPrefix]
         static void Setup_Prefix(MusicUI __instance)
         {
-
             try
             {
                 // 获取UI组件
@@ -83,7 +82,7 @@ namespace ChillPatcher.Patches.UIFramework
                 }
 
                 var musicManager = ChillUIFramework.Music as MusicUIManager;
-                
+
                 // 根据配置初始化对应的控制器
                 if (UIFrameworkConfig.EnableAlbumSeparators.Value)
                 {
@@ -91,14 +90,15 @@ namespace ChillPatcher.Patches.UIFramework
                     if (!_mixedComponentsInitialized && musicManager?.MixedVirtualScroll != null)
                     {
                         musicManager.MixedVirtualScroll.BufferCount = UIFrameworkConfig.VirtualScrollBufferSize.Value;
-                        musicManager.MixedVirtualScroll.InitializeComponents(scrollRect, playListButtonsPrefab, playListButtonsParent.transform);
-                        
+                        musicManager.MixedVirtualScroll.InitializeComponents(scrollRect, playListButtonsPrefab,
+                            playListButtonsParent.transform);
+
                         // 订阅专辑切换事件
                         musicManager.MixedVirtualScroll.OnAlbumToggle += OnAlbumToggleHandler;
-                        
+
                         // 订阅单曲排除状态变化事件
                         MusicService_Excluded_Patch.OnSongExcludedChanged += OnSongExcludedChangedHandler;
-                        
+
                         _mixedComponentsInitialized = true;
                         Plugin.Log.LogInfo("MixedVirtualScrollController initialized (with album separators)");
                     }
@@ -113,7 +113,8 @@ namespace ChillPatcher.Patches.UIFramework
                         {
                             virtualScroll.ItemHeight = 60f;
                             virtualScroll.BufferCount = UIFrameworkConfig.VirtualScrollBufferSize.Value;
-                            virtualScroll.InitializeComponents(scrollRect, playListButtonsPrefab, playListButtonsParent.transform);
+                            virtualScroll.InitializeComponents(scrollRect, playListButtonsPrefab,
+                                playListButtonsParent.transform);
                             _componentsInitialized = true;
                             Plugin.Log.LogInfo("VirtualScrollController initialized (no album separators)");
                         }
@@ -139,7 +140,7 @@ namespace ChillPatcher.Patches.UIFramework
                 ViewQueueList(__instance);
                 return false; // 阻止原方法
             }
-            
+
             // 如果框架未初始化，执行原方法
             if (!ChillUIFramework.IsInitialized)
             {
@@ -206,7 +207,7 @@ namespace ChillPatcher.Patches.UIFramework
         /// </summary>
         private static async Task ViewPlayListWithAlbumSeparators(
             MusicUI musicUI,
-            FacilityMusic facilityMusic, 
+            FacilityMusic facilityMusic,
             ObservableCollections.IReadOnlyObservableList<GameAudioInfo> playingList,
             MusicUIManager musicManager)
         {
@@ -222,7 +223,7 @@ namespace ChillPatcher.Patches.UIFramework
                 );
 
                 mixedScroll.SetDataSource(items);
-                
+
                 var albumCount = items.Count(i => i.ItemType == PlaylistItemType.AlbumHeader);
                 Plugin.Log.LogInfo($"Rendered playlist: {playingList.Count} songs, {albumCount} album headers");
             }
@@ -270,7 +271,7 @@ namespace ChillPatcher.Patches.UIFramework
                 }
 
                 var tagId = albumInfo.PlaylistId;
-                
+
                 // 切换专辑启用状态
                 bool newState = albumManager.ToggleAlbumEnabled(albumId, tagId);
                 Plugin.Log.LogInfo($"Album '{albumInfo.DisplayName}' toggled to {(newState ? "enabled" : "disabled")}");
@@ -291,8 +292,9 @@ namespace ChillPatcher.Patches.UIFramework
         {
             try
             {
-                Plugin.Log.LogDebug($"Song excluded state changed: {songUUID} -> {(isExcluded ? "excluded" : "included")}");
-                
+                Plugin.Log.LogDebug(
+                    $"Song excluded state changed: {songUUID} -> {(isExcluded ? "excluded" : "included")}");
+
                 // 刷新播放列表以更新专辑头的统计信息
                 RefreshPlaylistDisplay();
             }
@@ -323,11 +325,11 @@ namespace ChillPatcher.Patches.UIFramework
                 Plugin.Log.LogError($"Error refreshing playlist display: {ex}");
             }
         }
-        
+
         // 队列列表按钮的引用
         private static List<MusicPlayListButtons> _queueButtonList = new List<MusicPlayListButtons>();
         private static R3.CompositeDisposable _queueListDisposable = new R3.CompositeDisposable();
-        
+
         /// <summary>
         /// 使用原版列表渲染队列（非虚拟滚动）
         /// </summary>
@@ -337,7 +339,7 @@ namespace ChillPatcher.Patches.UIFramework
             {
                 // 清除dirty标志
                 Traverse.Create(musicUI).Field("isPlaylistDirty").SetValue(false);
-                
+
                 // 获取 prefab 和 parent
                 var playListButtonsPrefab = Traverse.Create(musicUI)
                     .Field("_playListButtonsPrefab")
@@ -351,13 +353,13 @@ namespace ChillPatcher.Patches.UIFramework
                 var scrollRect = Traverse.Create(musicUI)
                     .Field("scrollRect")
                     .GetValue<UnityEngine.UI.ScrollRect>();
-                    
+
                 if (playListButtonsPrefab == null || playListButtonsParent == null)
                 {
                     Plugin.Log.LogError("Failed to get prefab or parent for queue list");
                     return;
                 }
-                
+
                 // **关键：暂停虚拟滚动控制器并清理其项目**
                 var musicManager = ChillUIFramework.Music as MusicUIManager;
                 if (musicManager?.MixedVirtualScroll != null)
@@ -367,38 +369,40 @@ namespace ChillPatcher.Patches.UIFramework
                     // 清空 MixedVirtualScroll 的活动项
                     musicManager.MixedVirtualScroll.ClearAllItems();
                 }
-                
+
                 // 清空现有按钮（包括剩余的和空提示）
                 foreach (Transform child in playListButtonsParent.transform)
                 {
                     UnityEngine.Object.Destroy(child.gameObject);
                 }
+
                 _queueButtonList.Clear();
                 _queueListDisposable.Dispose();
                 _queueListDisposable = new R3.CompositeDisposable();
-                
+
                 // **关键：重置 Content 的位置**
                 var contentTransform = playListButtonsParent.GetComponent<RectTransform>();
                 if (contentTransform != null)
                 {
                     contentTransform.anchoredPosition = Vector2.zero;
                 }
-                
+
                 // **关键：重置 ScrollRect 滚动位置**
                 if (scrollRect != null)
                 {
                     scrollRect.verticalNormalizedPosition = 1f; // 滚动到顶部
                 }
-                
+
                 // **关键：确保 ContentSizeFitter 生效（非虚拟滚动模式需要）**
                 var contentSizeFitter = playListButtonsParent.GetComponent<UnityEngine.UI.ContentSizeFitter>();
                 if (contentSizeFitter == null)
                 {
                     contentSizeFitter = playListButtonsParent.AddComponent<UnityEngine.UI.ContentSizeFitter>();
                 }
+
                 contentSizeFitter.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
                 contentSizeFitter.enabled = true;
-                
+
                 // **关键：确保 VerticalLayoutGroup 存在**
                 var layoutGroup = playListButtonsParent.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
                 if (layoutGroup == null)
@@ -409,8 +413,9 @@ namespace ChillPatcher.Patches.UIFramework
                     layoutGroup.childControlWidth = true;
                     layoutGroup.childControlHeight = false;
                 }
+
                 layoutGroup.enabled = true;
-                
+
                 // 如果队列为空，显示提示
                 if (QueueDataSource.Count == 0)
                 {
@@ -418,7 +423,7 @@ namespace ChillPatcher.Patches.UIFramework
                     Plugin.Log.LogInfo("Queue is empty, showing hint");
                     return;
                 }
-                
+
                 // 创建队列项目
                 // 设置标志，让 MusicPlayListButtons.Setup 中的删除按钮逻辑被跳过
                 IsCreatingQueueButtons = true;
@@ -426,15 +431,16 @@ namespace ChillPatcher.Patches.UIFramework
                 {
                     foreach (var audioInfo in QueueDataSource)
                     {
-                        var buttonObj = UnityEngine.Object.Instantiate(playListButtonsPrefab, playListButtonsParent.transform, false);
+                        var buttonObj = UnityEngine.Object.Instantiate(playListButtonsPrefab,
+                            playListButtonsParent.transform, false);
                         var localPos = buttonObj.transform.localPosition;
                         localPos.z = 0f;
                         buttonObj.transform.localPosition = localPos;
                         buttonObj.transform.localScale = Vector3.one;
-                        
+
                         var button = buttonObj.GetComponent<MusicPlayListButtons>();
                         button.Setup(audioInfo, facilityMusic);
-                        
+
                         // 强制显示删除按钮（用于从队列移除）
                         var removeInteractableUI = Traverse.Create(button)
                             .Field("removeInteractableUI")
@@ -443,7 +449,7 @@ namespace ChillPatcher.Patches.UIFramework
                         {
                             removeInteractableUI.gameObject.SetActive(true);
                         }
-                        
+
                         // 替换删除按钮的行为：从队列移除而非从音乐库移除
                         var removeButton = Traverse.Create(button)
                             .Field("removeButton")
@@ -457,7 +463,7 @@ namespace ChillPatcher.Patches.UIFramework
                                 .Subscribe(_ => OnQueueItemRemoveClicked(button, currentAudioInfo))
                                 .AddTo(_queueListDisposable);
                         }
-                        
+
                         _queueButtonList.Add(button);
                     }
                 }
@@ -465,7 +471,7 @@ namespace ChillPatcher.Patches.UIFramework
                 {
                     IsCreatingQueueButtons = false;
                 }
-                
+
                 // 订阅拖拽事件 - 使用 R3.Observable.Merge
                 R3.Observable.Merge(_queueButtonList.Select(b => b.OnStartReorder))
                     .Subscribe(x => OnQueueStartReorder(musicUI, x.Item1, x.Item2))
@@ -476,11 +482,11 @@ namespace ChillPatcher.Patches.UIFramework
                 R3.Observable.Merge(_queueButtonList.Select(b => b.OnEndReorder))
                     .Subscribe(x => OnQueueEndReorder(musicUI, x.Item1, x.Item2))
                     .AddTo(_queueListDisposable);
-                
+
                 // **关键：强制刷新布局**
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(contentTransform);
                 UnityEngine.Canvas.ForceUpdateCanvases();
-                
+
                 Plugin.Log.LogInfo($"Queue list rendered with {QueueDataSource.Count} items");
             }
             catch (Exception ex)
@@ -488,76 +494,77 @@ namespace ChillPatcher.Patches.UIFramework
                 Plugin.Log.LogError($"Error rendering queue list: {ex}");
             }
         }
-        
+
         // 拖拽相关状态
         private static MusicPlayListButtons _queueDraggingButton;
         private static int _queueOriginalIndex;
         private static Vector3 _queueDragOffset;
-        private static int _currentDropIndex = -1;  // 当前预计的插入位置
-        private static List<float> _originalYPositions = new List<float>();  // 所有项目的原始Y位置
+        private static int _currentDropIndex = -1; // 当前预计的插入位置
+        private static List<float> _originalYPositions = new List<float>(); // 所有项目的原始Y位置
         private static UnityEngine.UI.VerticalLayoutGroup _layoutGroup;
         private static UnityEngine.UI.ContentSizeFitter _contentSizeFitter;
         private static UnityEngine.UI.ScrollRect _dragScrollRect;
-        
+
         /// <summary>
         /// 拖拽项目的高度
         /// </summary>
         private const float DragItemHeight = 60f;
-        
-        private static void OnQueueStartReorder(MusicUI musicUI, MusicPlayListButtons button, PointerEventData eventData)
+
+        private static void OnQueueStartReorder(MusicUI musicUI, MusicPlayListButtons button,
+            PointerEventData eventData)
         {
             _queueDraggingButton = button;
             _queueOriginalIndex = _queueButtonList.IndexOf(button);
             _currentDropIndex = _queueOriginalIndex;
-            
+
             // 获取并暂时禁用布局组件和滚动
             var playListButtonsParent = Traverse.Create(musicUI)
                 .Field("_playListButtonsParent")
                 .GetValue<GameObject>();
-            
+
             _dragScrollRect = Traverse.Create(musicUI)
                 .Field("scrollRect")
                 .GetValue<UnityEngine.UI.ScrollRect>();
-            
+
             if (playListButtonsParent != null)
             {
                 _layoutGroup = playListButtonsParent.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
                 _contentSizeFitter = playListButtonsParent.GetComponent<UnityEngine.UI.ContentSizeFitter>();
-                
+
                 // 禁用布局组件前，记录所有项目的Y位置
                 _originalYPositions.Clear();
                 foreach (var btn in _queueButtonList)
                 {
                     _originalYPositions.Add(btn.transform.localPosition.y);
                 }
-                
+
                 // 禁用布局组件
                 if (_layoutGroup != null) _layoutGroup.enabled = false;
                 if (_contentSizeFitter != null) _contentSizeFitter.enabled = false;
             }
-            
+
             // 禁用 ScrollRect 以防止它抢占拖拽事件
             if (_dragScrollRect != null)
             {
                 _dragScrollRect.enabled = false;
             }
-            
+
             // 计算拖拽偏移
             var rectTransform = button.GetComponent<RectTransform>();
             RectTransformUtility.ScreenPointToWorldPointInRectangle(
                 rectTransform, eventData.position, eventData.pressEventCamera, out var worldPoint);
             _queueDragOffset = button.transform.position - worldPoint;
-            
+
             // 将拖拽项放到最上层
             button.transform.SetAsLastSibling();
-            
+
             Plugin.Log.LogDebug($"Start drag: index={_queueOriginalIndex}");
         }
-        
+
         private static void OnQueueDragReorder(MusicUI musicUI, MusicPlayListButtons button, PointerEventData eventData)
         {
             if (_queueDraggingButton != button) return;
-            
+
             // 检测滚轮：如果有滚轮输入，强制中断拖拽
             float scrollDelta = Input.mouseScrollDelta.y;
             if (scrollDelta != 0)
@@ -566,59 +573,60 @@ namespace ChillPatcher.Patches.UIFramework
                 OnQueueEndReorder(musicUI, button, eventData);
                 return;
             }
-            
+
             var rectTransform = button.GetComponent<RectTransform>();
             if (RectTransformUtility.ScreenPointToWorldPointInRectangle(
-                rectTransform, eventData.position, eventData.pressEventCamera, out var worldPoint))
+                    rectTransform, eventData.position, eventData.pressEventCamera, out var worldPoint))
             {
                 button.transform.position = worldPoint + _queueDragOffset;
             }
-            
+
             // 计算鼠标在本地坐标系中的位置，用于确定插入点
             // 使用 content 的 transform 来转换坐标
             float mouseLocalY = button.transform.localPosition.y;
             var contentParent = button.transform.parent;
             if (contentParent != null && RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                contentParent as RectTransform, eventData.position, eventData.pressEventCamera, out var localPoint))
+                    contentParent as RectTransform, eventData.position, eventData.pressEventCamera, out var localPoint))
             {
                 mouseLocalY = localPoint.y;
             }
-            
+
             // 计算当前应该插入的位置（基于鼠标位置）
             int newDropIndex = CalculateDropIndexFromLocalY(mouseLocalY);
-            
+
             // 只有当索引变化时才触发动画
             if (newDropIndex != _currentDropIndex)
             {
-                Plugin.Log.LogDebug($"Drop index changed: {_currentDropIndex} -> {newDropIndex} (original={_queueOriginalIndex}, mouseY={mouseLocalY})");
+                Plugin.Log.LogDebug(
+                    $"Drop index changed: {_currentDropIndex} -> {newDropIndex} (original={_queueOriginalIndex}, mouseY={mouseLocalY})");
                 _currentDropIndex = newDropIndex;
                 AnimateItemsToNewPositions();
             }
         }
-        
+
         /// <summary>
         /// 动画持续时间（秒）
         /// </summary>
         private const float ItemAnimationDuration = 0.15f;
-        
+
         /// <summary>
         /// 当索引变化时，用动画将项目移动到新位置
         /// </summary>
         private static void AnimateItemsToNewPositions()
         {
             if (_originalYPositions.Count != _queueButtonList.Count) return;
-            
+
             // dropIndex 是插入点的位置
             // 例如：[A,B,C,D] 中把 A(索引0) 拖到 B 和 C 之间，dropIndex = 2
             // 结果是 [B,A,C,D]，B 需要向上移动（到原来 A 的位置）
-            
+
             for (int i = 0; i < _queueButtonList.Count; i++)
             {
                 var btn = _queueButtonList[i];
                 if (btn == _queueDraggingButton) continue;
-                
+
                 float targetY = _originalYPositions[i];
-                
+
                 if (_currentDropIndex != _queueOriginalIndex)
                 {
                     if (_currentDropIndex > _queueOriginalIndex)
@@ -627,7 +635,7 @@ namespace ChillPatcher.Patches.UIFramework
                         // 在 (originalIndex, dropIndex) 范围内的项目需要向上移动一个位置
                         if (i > _queueOriginalIndex && i < _currentDropIndex)
                         {
-                            targetY += DragItemHeight;  // 向上移动（Y 增加）
+                            targetY += DragItemHeight; // 向上移动（Y 增加）
                         }
                     }
                     else
@@ -636,17 +644,17 @@ namespace ChillPatcher.Patches.UIFramework
                         // 在 [dropIndex, originalIndex) 范围内的项目需要向下移动一个位置
                         if (i >= _currentDropIndex && i < _queueOriginalIndex)
                         {
-                            targetY -= DragItemHeight;  // 向下移动（Y 减少）
+                            targetY -= DragItemHeight; // 向下移动（Y 减少）
                         }
                     }
                 }
-                
+
                 // 使用 DOTween 动画移动到目标位置
                 DG.Tweening.DOTween.Kill(btn.transform, complete: false);
                 btn.transform.DOLocalMoveY(targetY, ItemAnimationDuration).SetEase(DG.Tweening.Ease.OutQuad);
             }
         }
-        
+
         /// <summary>
         /// 根据本地Y坐标计算插入位置（使用当前视觉位置）
         /// </summary>
@@ -654,18 +662,18 @@ namespace ChillPatcher.Patches.UIFramework
         {
             // 使用项目当前的实际视觉位置来计算
             // 这样动画进行中也能正确判断
-            
+
             int result = _queueButtonList.Count;
-            
+
             for (int i = 0; i < _queueButtonList.Count; i++)
             {
                 var btn = _queueButtonList[i];
-                if (btn == _queueDraggingButton) continue;  // 跳过正在拖拽的项目
-                
+                if (btn == _queueDraggingButton) continue; // 跳过正在拖拽的项目
+
                 // 使用当前实际位置
                 float currentY = btn.transform.localPosition.y;
                 float itemCenter = currentY - DragItemHeight / 2f;
-                
+
                 if (localY >= itemCenter)
                 {
                     // 找到第一个鼠标在其上方的项目，返回它的索引
@@ -674,14 +682,14 @@ namespace ChillPatcher.Patches.UIFramework
                     break;
                 }
             }
-            
+
             return result;
         }
-        
+
         private static void OnQueueEndReorder(MusicUI musicUI, MusicPlayListButtons button, PointerEventData eventData)
         {
             if (_queueDraggingButton != button) return;
-            
+
             // 停止所有动画
             foreach (var btn in _queueButtonList)
             {
@@ -690,9 +698,9 @@ namespace ChillPatcher.Patches.UIFramework
                     DG.Tweening.DOTween.Kill(btn.transform, complete: true);
                 }
             }
-            
+
             int newIndex = _currentDropIndex;
-            
+
             if (newIndex != _queueOriginalIndex && newIndex >= 0 && newIndex <= _queueButtonList.Count)
             {
                 // 计算实际插入位置：如果拖拽项在目标位置之前，需要减 1
@@ -701,42 +709,43 @@ namespace ChillPatcher.Patches.UIFramework
                 {
                     insertIndex--;
                 }
+
                 if (insertIndex > QueueDataSource.Count) insertIndex = QueueDataSource.Count;
                 if (insertIndex < 0) insertIndex = 0;
-                
+
                 // 调用 PlayQueueManager 移动数据
                 PlayQueueManager.Instance.Move(_queueOriginalIndex, insertIndex);
-                
+
                 // 更新按钮列表
                 _queueButtonList.Remove(button);
                 if (insertIndex > _queueButtonList.Count) insertIndex = _queueButtonList.Count;
                 if (insertIndex < 0) insertIndex = 0;
                 _queueButtonList.Insert(insertIndex, button);
-                
+
                 // 触发事件
                 OnQueueReordered?.Invoke(QueueDataSource.Select(a => a.UUID).ToList());
-                
+
                 Plugin.Log.LogInfo($"Reordered: {_queueOriginalIndex} -> {newIndex} (insertIndex={insertIndex})");
             }
-            
+
             // 恢复滚动
             if (_dragScrollRect != null)
             {
                 _dragScrollRect.enabled = true;
             }
-            
+
             // 恢复布局组件
             if (_layoutGroup != null) _layoutGroup.enabled = true;
             if (_contentSizeFitter != null) _contentSizeFitter.enabled = true;
-            
+
             // 刷新显示
             RefreshPlaylistDisplay();
-            
+
             _queueDraggingButton = null;
             _currentDropIndex = -1;
             _originalYPositions.Clear();
         }
-        
+
         private static int CalculateQueueDropIndex(MusicPlayListButtons button)
         {
             var buttonY = button.transform.position.y;
@@ -744,16 +753,17 @@ namespace ChillPatcher.Patches.UIFramework
             {
                 var other = _queueButtonList[i];
                 if (other == button) continue;
-                
+
                 var otherY = other.transform.position.y;
                 if (buttonY > otherY)
                 {
                     return i;
                 }
             }
+
             return _queueButtonList.Count - 1;
         }
-        
+
         /// <summary>
         /// 队列项删除按钮点击处理（新版本，带 audioInfo 参数）
         /// </summary>
@@ -763,25 +773,25 @@ namespace ChillPatcher.Patches.UIFramework
             if (index >= 0 && index < QueueDataSource.Count)
             {
                 var uuid = audioInfo.UUID;
-                bool isCurrentPlaying = (index == 0);  // 是否移除当前正在播放的歌曲
-                
+                bool isCurrentPlaying = (index == 0); // 是否移除当前正在播放的歌曲
+
                 // 调用 PlayQueueManager 删除数据
                 PlayQueueManager.Instance.RemoveAt(index);
-                
+
                 _queueButtonList.RemoveAt(index);
                 UnityEngine.Object.Destroy(button.gameObject);
-                
+
                 // 触发事件
                 OnQueueItemRemoved?.Invoke(uuid);
-                
+
                 Plugin.Log.LogInfo($"Queue item removed: {uuid} (wasPlaying: {isCurrentPlaying})");
-                
+
                 // 如果移除的是当前播放的歌曲，自动播放下一首
                 if (isCurrentPlaying)
                 {
                     PlayNextAfterRemove();
                 }
-                
+
                 // 如果队列为空，显示提示
                 if (QueueDataSource.Count == 0)
                 {
@@ -789,7 +799,7 @@ namespace ChillPatcher.Patches.UIFramework
                 }
             }
         }
-        
+
         /// <summary>
         /// 移除当前播放歌曲后，播放下一首
         /// </summary>
@@ -798,7 +808,7 @@ namespace ChillPatcher.Patches.UIFramework
             // 获取MusicService
             var musicService = RoomLifetimeScope.Resolve<MusicService>();
             if (musicService == null) return;
-            
+
             // 如果队列不为空，播放新的队首（原来的第二首）
             if (QueueDataSource.Count > 0)
             {
@@ -814,12 +824,12 @@ namespace ChillPatcher.Patches.UIFramework
                 Plugin.Log.LogInfo("[Queue] Queue empty after remove, skipping to next from playlist");
             }
         }
-        
+
         /// <summary>
         /// 空队列提示的水平偏移（正值向右）
         /// </summary>
         private const float EmptyHintOffsetX = 80f;
-        
+
         /// <summary>
         /// 创建空队列提示
         /// </summary>
@@ -828,25 +838,26 @@ namespace ChillPatcher.Patches.UIFramework
             // 创建一个简单的文字提示
             var hintObj = new GameObject("EmptyQueueHint");
             hintObj.transform.SetParent(parent, false);
-            
+
             // 添加 LayoutElement 并设置 ignoreLayout = true，让它忽略 VerticalLayoutGroup
             var layoutElement = hintObj.AddComponent<UnityEngine.UI.LayoutElement>();
             layoutElement.ignoreLayout = true;
-            
+
             // 添加 RectTransform
-            var rectTransform = hintObj.GetComponent<RectTransform>();  // AddComponent 时已经添加了
-            
+            var rectTransform = hintObj.GetComponent<RectTransform>(); // AddComponent 时已经添加了
+
             // 设置锚点为左上角（和 content 一致）
             rectTransform.anchorMin = new Vector2(0f, 1f);
             rectTransform.anchorMax = new Vector2(0f, 1f);
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);  // 居中 pivot 方便定位
+            rectTransform.pivot = new Vector2(0.5f, 0.5f); // 居中 pivot 方便定位
             rectTransform.sizeDelta = new Vector2(400, 100);
-            
+
             // 设置位置：向右偏移 EmptyHintOffsetX + 200（文字居中），向下偏移 150
             rectTransform.anchoredPosition = new Vector2(EmptyHintOffsetX + 200f, -150f);
-            
-            Plugin.Log.LogDebug($"EmptyQueueHint created, anchoredPosition={rectTransform.anchoredPosition}, ignoreLayout={layoutElement.ignoreLayout}");
-            
+
+            Plugin.Log.LogDebug(
+                $"EmptyQueueHint created, anchoredPosition={rectTransform.anchoredPosition}, ignoreLayout={layoutElement.ignoreLayout}");
+
             // 添加 TextMeshPro 文本
             var text = hintObj.AddComponent<TMPro.TextMeshProUGUI>();
             text.text = "播放队列为空\n点击「返回列表」返回播放列表";
@@ -854,21 +865,21 @@ namespace ChillPatcher.Patches.UIFramework
             text.alignment = TMPro.TextAlignmentOptions.Center;
             text.color = new Color(1f, 1f, 1f, 0.6f);
         }
-        
+
         /// <summary>
         /// 切换到队列模式（数据直接从 PlayQueueManager 获取）
         /// </summary>
         public static void SwitchToQueue()
         {
             IsShowingQueue = true;
-            
+
             // 订阅队列变化事件，以便在播放下一曲时刷新 UI
-            PlayQueueManager.Instance.OnQueueChanged -= OnPlayQueueChanged;  // 先取消，避免重复订阅
+            PlayQueueManager.Instance.OnQueueChanged -= OnPlayQueueChanged; // 先取消，避免重复订阅
             PlayQueueManager.Instance.OnQueueChanged += OnPlayQueueChanged;
-            
+
             RefreshPlaylistDisplay();
         }
-        
+
         /// <summary>
         /// 队列变化时的回调
         /// </summary>
@@ -880,7 +891,7 @@ namespace ChillPatcher.Patches.UIFramework
                 RefreshPlaylistDisplay();
             }
         }
-        
+
         /// <summary>
         /// 切换到队列模式（兼容旧接口，参数被忽略）
         /// </summary>
@@ -889,28 +900,28 @@ namespace ChillPatcher.Patches.UIFramework
         {
             SwitchToQueue();
         }
-        
+
         /// <summary>
         /// 切换回播放列表模式
         /// </summary>
         public static void SwitchToPlaylist()
         {
             IsShowingQueue = false;
-            
+
             // 取消订阅队列变化事件
             PlayQueueManager.Instance.OnQueueChanged -= OnPlayQueueChanged;
-            
+
             // QueueDataSource 现在是只读的，数据由 PlayQueueManager 管理
             _queueListDisposable.Dispose();
             _queueListDisposable = new R3.CompositeDisposable();
-            
+
             var musicUI = UnityEngine.Object.FindObjectOfType<MusicUI>();
             if (musicUI != null)
             {
                 var playListButtonsParent = Traverse.Create(musicUI)
                     .Field("_playListButtonsParent")
                     .GetValue<GameObject>();
-                    
+
                 if (playListButtonsParent != null)
                 {
                     // **关键：清理队列创建的所有项目**
@@ -918,31 +929,31 @@ namespace ChillPatcher.Patches.UIFramework
                     {
                         UnityEngine.Object.Destroy(child.gameObject);
                     }
-                    
+
                     // 禁用手动添加的布局组件（让虚拟滚动接管）
                     var contentSizeFitter = playListButtonsParent.GetComponent<UnityEngine.UI.ContentSizeFitter>();
                     if (contentSizeFitter != null)
                         contentSizeFitter.enabled = false;
-                    
+
                     var layoutGroup = playListButtonsParent.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
                     if (layoutGroup != null)
                         layoutGroup.enabled = false;
                 }
             }
-            
+
             _queueButtonList.Clear();
-            
+
             // **关键：恢复虚拟滚动**
             var musicManager = ChillUIFramework.Music as MusicUIManager;
             if (musicManager?.MixedVirtualScroll != null)
             {
                 musicManager.MixedVirtualScroll.IsPaused = false;
             }
-            
+
             RefreshPlaylistDisplay();
         }
     }
-    
+
     /// <summary>
     /// Harmony Patch: 在队列视图创建按钮时阻止原始删除逻辑绑定
     /// 
@@ -966,20 +977,20 @@ namespace ChillPatcher.Patches.UIFramework
             // 只在创建队列按钮时处理
             if (!MusicUI_VirtualScroll_Patch.IsCreatingQueueButtons)
                 return;
-            
+
             try
             {
                 // 获取 removeButton 字段
                 var removeButton = Traverse.Create(__instance)
                     .Field("removeButton")
                     .GetValue<ButtonEventObservable>();
-                
+
                 if (removeButton == null)
                     return;
-                
+
                 // 直接销毁 ButtonEventObservable 组件，这会断开所有 R3 订阅
                 UnityEngine.Object.Destroy(removeButton);
-                
+
                 // 获取底层 Button 组件
                 var buttonGO = removeButton.gameObject;
                 var underlyingButton = buttonGO.GetComponent<UnityEngine.UI.Button>();
@@ -988,21 +999,39 @@ namespace ChillPatcher.Patches.UIFramework
                     // 移除所有 onClick 监听器
                     underlyingButton.onClick.RemoveAllListeners();
                 }
-                
+
                 // 创建新的 ButtonEventObservable 组件
                 var newButtonEventObservable = buttonGO.AddComponent<ButtonEventObservable>();
-                
+
                 // 更新 MusicPlayListButtons 中的 removeButton 引用
                 Traverse.Create(__instance)
                     .Field("removeButton")
                     .SetValue(newButtonEventObservable);
-                
-                Plugin.Log.LogDebug($"[QueueRemovePatch] Replaced removeButton component for queue button: {__instance.AudioInfo?.AudioClipName}");
+
+                Plugin.Log.LogDebug(
+                    $"[QueueRemovePatch] Replaced removeButton component for queue button: {__instance.AudioInfo?.AudioClipName}");
             }
             catch (Exception ex)
             {
                 Plugin.Log.LogError($"[QueueRemovePatch] Error replacing removeButton: {ex}");
             }
+        }
+    }
+
+    [HarmonyPatch]
+    public class MusicUI_MusicInfo_Patch
+    {
+        [HarmonyPatch(typeof(MusicUI), "OnChangeMusic")]
+        [HarmonyPrefix]
+        static bool OnChangeMusic_Prefix()
+        {
+            Plugin.Log.LogInfo("[MusicUI] OnChangeMusic_Prefix invoke");
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }

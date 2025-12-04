@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using BepInEx;
 
@@ -45,6 +46,27 @@ namespace ChillPatcher
                     {
                         // 这是一个严重警告，提醒您发版时漏文件了
                         log.LogError($"[Core] 缺失依赖文件: {path}");
+                    }
+                }
+                
+                string[] other =
+                [
+                    "Nancy.dll",
+                    "Nancy.Hosting.Self.dll",
+                    "Refit.dll",
+                    "Refit.HttpClientFactory.dll"
+                ];
+                foreach (var lib in other)
+                {
+                    try
+                    {
+                        var path = Path.Combine(pluginDir, lib);
+                        Assembly.LoadFrom(path);
+                        Plugin.Logger.LogInfo("[ThirdPlayer] Loading dll: " + path);
+                    }
+                    catch (Exception e)
+                    {
+                        Plugin.Logger.LogError("[ThirdPlayer] " + e.Message);
                     }
                 }
             }

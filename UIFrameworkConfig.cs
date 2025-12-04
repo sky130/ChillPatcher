@@ -55,6 +55,12 @@ namespace ChillPatcher
         /// </summary>
         public static ConfigEntry<int> VirtualScrollBufferSize { get; private set; }
         
+        public static ConfigEntry<bool> EnableThirdPlayerMediaTransportControls { get; private set; }
+        
+        public static ConfigEntry<int> ThirdPlayerMediaTransportControlsPort { get; private set; }
+        
+        public static ConfigEntry<int> ThirdPlayerMediaTransportControlsRemotePort { get; private set; }
+        
         public static void Initialize(ConfigFile config)
         {
             // 功能开关
@@ -75,8 +81,8 @@ namespace ChillPatcher
             EnableVirtualScroll = config.Bind(
                 "Features",
                 "EnableVirtualScroll",
-                true,  // [已弃用] 虚拟滚动现在总是启用，此配置不再生效
-                "[Deprecated] Virtual scroll is now always enabled. This setting no longer has any effect."
+                true,  // 默认开启，不影响存档
+                "Enable virtual scrolling for better performance"
             );
             
             EnableAlbumArtDisplay = config.Bind(
@@ -113,6 +119,27 @@ namespace ChillPatcher
                 "VirtualScrollBufferSize",
                 3,
                 "Virtual scroll buffer size"
+            );
+            
+            EnableThirdPlayerMediaTransportControls = config.Bind(
+                "Features",
+                "EnableThirdPlayerMediaTransportControls",
+                false,
+                "Enable ThirdPlayer Media Transport Controls"
+            );
+            
+            ThirdPlayerMediaTransportControlsPort = config.Bind(
+                "Advanced",
+                "ThirdPlayerMediaTransportControlsPort",
+                8091,
+                "ThirdPlayer Media Transport Controls Server Port"
+            );
+            
+            ThirdPlayerMediaTransportControlsRemotePort = config.Bind(
+                "Advanced",
+                "ThirdPlayerMediaTransportControlsRemotePort",
+                8092,
+                "ThirdPlayer Media Transport Controls Remote Server Port"
             );
         }
     }

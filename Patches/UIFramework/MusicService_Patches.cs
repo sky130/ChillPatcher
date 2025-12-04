@@ -128,7 +128,7 @@ namespace ChillPatcher.Patches.UIFramework
         {
             // ✅ 保存实例引用
             CurrentInstance = __instance;
-            
+
             // 检查配置开关：启用文件夹歌单或无限歌曲时，移除100首限制
             if (!UIFrameworkConfig.EnableUnlimitedSongs.Value && !PluginConfig.EnableFolderPlaylists.Value)
             {
@@ -169,7 +169,7 @@ namespace ChillPatcher.Patches.UIFramework
 
             // 添加到列表
             allMusicList.Add(music);
-            
+
             // ✅ 合并自定义Tag到音频对象
             var customTags = CustomTagManager.Instance.GetSongCustomTags(music.UUID);
             if (customTags != 0)
@@ -177,7 +177,7 @@ namespace ChillPatcher.Patches.UIFramework
                 music.Tag |= customTags;
                 Plugin.Log.LogDebug($"[TagMerge] {music.Title}: {music.Tag} (merged custom: {customTags})");
             }
-            
+
             // ⚠️ 注释掉存档保存：运行时加载的歌曲不需要保存到存档
             // SaveDataManager.Instance.MusicSetting.PlaylistOrder.Add(music.UUID);
             // SaveDataManager.Instance.SaveMusicSetting();
@@ -227,6 +227,90 @@ namespace ChillPatcher.Patches.UIFramework
         {
             // ✅ 保存实例引用供后续使用
             MusicService_RemoveLimit_Patch.CurrentInstance = __instance;
+        }
+    }
+
+    [HarmonyPatch(typeof(MusicService))]
+    public static class MusicService_Block_Origin
+    {
+        /// <summary>
+        /// Harmony补丁 - 拦截内置播放器播放
+        /// </summary>
+        [HarmonyPatch(typeof(MusicService), "PlayArugumentMusic")]
+        [HarmonyPrefix]
+        public static bool PlayArugumentMusic_Prefix()
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo("[ThirdPlayer] PlayArugumentMusic_Prefix");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Harmony补丁 - 拦截内置播放器播放
+        /// </summary>
+        [HarmonyPatch(typeof(MusicService), "PlayMusicInPlaylist")]
+        [HarmonyPrefix]
+        public static bool PlayMusicInPlaylist_Prefix()
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo("[ThirdPlayer] PlayMusicInPlaylist_Prefix");
+                return false;
+            }
+
+            return true;
+        }
+
+        [HarmonyPatch(typeof(MusicService), "PlayNextMusic")]
+        [HarmonyPrefix]
+        public static bool PlayNextMusic_Prefix()
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo("[ThirdPlayer] PlayNextMusic_Prefix");
+                return false;
+            }
+            return true;
+        }
+        
+        [HarmonyPatch(typeof(MusicService), "PlayBackMusic")]
+        [HarmonyPrefix]
+        public static bool PlayBackMusic_Prefix()
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo("[ThirdPlayer] PlayBackMusic_Prefix");
+                return false;
+            }
+            return true;
+        }
+        
+        [HarmonyPatch(typeof(MusicService), "SkipCurrentMusic")]
+        [HarmonyPrefix]
+        public static bool SkipCurrentMusic_Prefix()
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo("[ThirdPlayer] SkipCurrentMusic_Prefix");
+                return false;
+            }
+            return true;
+        }
+        
+        [HarmonyPatch(typeof(MusicService), "SetMusicProgress")]
+        [HarmonyPrefix]
+        public static bool SetMusicProgress_Prefix(float progress)
+        {
+            if (UIFrameworkConfig.EnableThirdPlayerMediaTransportControls.Value)
+            {
+                Plugin.Logger.LogInfo($"[ThirdPlayer] SetMusicProgress_Prefix {progress}");
+                return false;
+            }
+            return true;
         }
     }
 }

@@ -1,294 +1,334 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <AssemblyName>ChillPatcher</AssemblyName>
-    <OutputPath>bin\</OutputPath>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <!-- Exclude game source files -->
-    <Compile Remove="game\**" />
-    <EmbeddedResource Remove="game\**" />
-    <None Remove="game\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Embedded Resources -->
-    <EmbeddedResource Include="covers/defaultcover.png">
-      <LogicalName>ChillPatcher.Resources.defaultcover.png</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/localcover.jpg">
-      <LogicalName>ChillPatcher.Resources.localcover.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover1.jpg">
-      <LogicalName>ChillPatcher.Resources.gamecover1.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover2.jpg">
-      <LogicalName>ChillPatcher.Resources.gamecover2.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover3.png">
-      <LogicalName>ChillPatcher.Resources.gamecover3.png</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- NuGet Packages -->
-    <PackageReference Include="TagLibSharp" Version="2.3.0" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
-    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all" />
-    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-  </ItemGroup>
-
-  <PropertyGroup>
-    <GamePath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed</GamePath>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <!-- BepInEx and Harmony from local references -->
-    <Reference Include="0Harmony">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\core\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\core\BepInEx.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Unity Engine -->
-    <Reference Include="UnityEngine">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UIModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AudioModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.TextMeshPro" Publicize="true">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Unity.TextMeshPro.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Game DLLs -->
-    <Reference Include="Assembly-CSharp" Publicize="true">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="com.rlabrecque.steamworks.net">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- UI Framework Dependencies -->
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Newtonsoft.Json.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UniTask">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UniTask.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ObservableCollections">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\ObservableCollections.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ObservableCollections.R3">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\ObservableCollections.R3.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="R3">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\R3.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="R3.Unity">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\R3.Unity.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DOTween">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\DOTween.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="VContainer">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\VContainer.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="FastEnum">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\FastEnum.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AudioManager">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\AudioManager.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
-
-  <Target Name="CopyToPlugins" AfterTargets="Build">
     <PropertyGroup>
-      <PluginDir>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\plugins\ChillPatcher\</PluginDir>
-      <NativePluginDir>$(PluginDir)native\</NativePluginDir>
-      <RimeDllPath>$(ProjectDir)librime\build\bin\Release\rime.dll</RimeDllPath>
-      <RimeDataDir>$(PluginDir)rime-data\</RimeDataDir>
-      <RimeSharedDir>$(RimeDataDir)shared\</RimeSharedDir>
-      <RimeUserDir>$(RimeDataDir)user\</RimeUserDir>
-      <OpenCCDir>$(RimeSharedDir)opencc\</OpenCCDir>
+        <TargetFramework>net472</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <AssemblyName>ChillPatcher</AssemblyName>
+        <OutputPath>bin\</OutputPath>
     </PropertyGroup>
-    
-    <MakeDir Directories="$(PluginDir)" />
-    <MakeDir Directories="$(RimeSharedDir)" />
-    <MakeDir Directories="$(RimeUserDir)" />
-    <MakeDir Directories="$(OpenCCDir)" />
-    <MakeDir Directories="$(NativePluginDir)x64\" />
-    <!-- <MakeDir Directories="$(NativePluginDir)x86\" /> -->
-    
-    <!-- Copy main DLL -->
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)" />
-    
-    <!-- Copy TagLibSharp.dll -->
-    <ItemGroup>
-      <TagLibFiles Include="$(OutputPath)TagLibSharp.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(TagLibFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
-    
-    <!-- Copy System.Data.SQLite DLLs (从构建输出目录) -->
-    <ItemGroup>
-      <SQLiteFiles Include="$(OutputPath)System.Data.SQLite.dll" />
-      <SQLiteNativeX64 Include="$(OutputPath)x64\SQLite.Interop.dll" />
-      <!-- <SQLiteNativeX86 Include="$(OutputPath)x86\SQLite.Interop.dll" /> -->
-    </ItemGroup>
-    <Copy SourceFiles="@(SQLiteFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)System.Data.SQLite.dll')" />
-    <Copy SourceFiles="@(SQLiteNativeX64)" DestinationFiles="$(NativePluginDir)x64\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x64\SQLite.Interop.dll')" />
-    <!-- <Copy SourceFiles="@(SQLiteNativeX86)" DestinationFiles="$(NativePluginDir)x86\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x86\SQLite.Interop.dll')" />     -->
-    
-    <!-- Copy NAudio.Wasapi DLLs (用于系统音频监控) -->
-    <ItemGroup>
-      <NAudioFiles Include="$(OutputPath)NAudio.Core.dll" />
-      <NAudioFiles Include="$(OutputPath)NAudio.Wasapi.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(NAudioFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)NAudio.Wasapi.dll')" />
-    
-    <!-- Copy rime.dll -->
-    <Copy SourceFiles="$(RimeDllPath)" DestinationFolder="$(PluginDir)" Condition="Exists('$(RimeDllPath)')" />
-    
-    <!-- Copy prelude (基础配置文件,不包括default.yaml) -->
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\symbols.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\punctuation.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\key_bindings.yaml" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy custom default.yaml to shared/ (使用我们的配置) -->
-    <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\default.yaml" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy luna_pinyin.custom.yaml to shared/ (繁简转换配置) -->
-    <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\luna_pinyin.custom.yaml" DestinationFolder="$(RimeSharedDir)" Condition="Exists('$(ProjectDir)RimeDefaultConfig\luna_pinyin.custom.yaml')" />
-    
-    <!-- Copy essay (语言模型) -->
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\essay\essay.txt" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy custom default.yaml to user/ (覆盖配置) - 移除,不需要重复 -->
-    <!-- <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\default.yaml" DestinationFiles="$(RimeUserDir)default.custom.yaml" /> -->
-    
-    <!-- Copy luna_pinyin schemas + dependencies -->
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\luna_pinyin.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\luna_pinyin.dict.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\pinyin.yaml" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy stroke dependency -->
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\stroke\stroke.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\stroke\stroke.dict.yaml" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy double_pinyin schemas -->
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_abc.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_flypy.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_mspy.schema.yaml" DestinationFolder="$(RimeSharedDir)" />
-    
-    <!-- Copy OpenCC data files (繁简转换必需) -->
-    <ItemGroup>
-      <OpenCCFiles Include="$(ProjectDir)librime\share\opencc\*.json" />
-      <OpenCCFiles Include="$(ProjectDir)librime\share\opencc\*.ocd2" />
-    </ItemGroup>
-    <Copy SourceFiles="@(OpenCCFiles)" DestinationFolder="$(OpenCCDir)" />
-    
-    <!-- Copy Native FLAC Decoder DLLs -->
+
     <PropertyGroup>
-      <NativePluginDir>$(PluginDir)native\</NativePluginDir>
+        <GamePath>C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\</GamePath>
     </PropertyGroup>
-    <MakeDir Directories="$(NativePluginDir)x64" Condition="!Exists('$(NativePluginDir)x64')" />
-    <!-- <MakeDir Directories="$(NativePluginDir)x86" Condition="!Exists('$(NativePluginDir)x86')" /> -->
-    
+
     <ItemGroup>
-      <FlacDecoderX64 Include="$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll" />
-      <!-- <FlacDecoderX86 Include="$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll" /> -->
+        <!-- Exclude game source files -->
+        <Compile Remove="game\**"/>
+        <EmbeddedResource Remove="game\**"/>
+        <None Remove="game\**"/>
     </ItemGroup>
-    
-    <Copy SourceFiles="@(FlacDecoderX64)" DestinationFolder="$(NativePluginDir)x64" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <!-- <Copy SourceFiles="@(FlacDecoderX86)" DestinationFolder="$(NativePluginDir)x86" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
-    
-    <!-- Copy Native SMTC Bridge DLL -->
+
     <ItemGroup>
-      <SmtcBridgeX64 Include="$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll" />
+        <!-- Embedded Resources -->
+        <EmbeddedResource Include="covers/defaultcover.png">
+            <LogicalName>ChillPatcher.Resources.defaultcover.png</LogicalName>
+        </EmbeddedResource>
+        <EmbeddedResource Include="covers/localcover.jpg">
+            <LogicalName>ChillPatcher.Resources.localcover.jpg</LogicalName>
+        </EmbeddedResource>
+        <EmbeddedResource Include="covers/gamecover1.jpg">
+            <LogicalName>ChillPatcher.Resources.gamecover1.jpg</LogicalName>
+        </EmbeddedResource>
+        <EmbeddedResource Include="covers/gamecover2.jpg">
+            <LogicalName>ChillPatcher.Resources.gamecover2.jpg</LogicalName>
+        </EmbeddedResource>
+        <EmbeddedResource Include="covers/gamecover3.png">
+            <LogicalName>ChillPatcher.Resources.gamecover3.png</LogicalName>
+        </EmbeddedResource>
     </ItemGroup>
-    <Copy SourceFiles="@(SmtcBridgeX64)" DestinationFolder="$(NativePluginDir)x64" Condition="Exists('$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll')" />
-    
+
     <ItemGroup>
-       <VCRuntimeFiles Include="$(ProjectDir)lib\*.dll" /> 
+        <!-- NuGet Packages -->
+        <PackageReference Include="Refit" Version="9.0.2"/>
+        <PackageReference Include="Refit.HttpClientFactory" Version="9.0.2"/>
+        <PackageReference Include="TagLibSharp" Version="2.3.0"/>
+        <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118"/>
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all"/>
+        <PackageReference Include="NAudio.Wasapi" Version="2.2.1"/>
     </ItemGroup>
-    <Copy SourceFiles="@(VCRuntimeFiles)" DestinationFolder="$(NativePluginDir)x64" />
-    
-    <!-- Copy License files -->
-    <MakeDir Directories="$(PluginDir)licenses" Condition="!Exists('$(PluginDir)licenses')" />
-    <Copy SourceFiles="$(ProjectDir)LICENSE" DestinationFiles="$(PluginDir)licenses\ChillPatcher-LICENSE.txt" />
-    <Copy SourceFiles="$(ProjectDir)librime\LICENSE" DestinationFiles="$(PluginDir)licenses\librime-LICENSE.txt" Condition="Exists('$(ProjectDir)librime\LICENSE')" />
-    <Copy SourceFiles="$(ProjectDir)NativePlugins\dr_libs\LICENSE" DestinationFiles="$(PluginDir)licenses\dr_libs-LICENSE.txt" Condition="Exists('$(ProjectDir)NativePlugins\dr_libs\LICENSE')" />
-    
-    <Message Text="Deployed to: $(PluginDir)" Importance="high" />
-    <Message Text="Copied rime.dll" Importance="high" Condition="Exists('$(RimeDllPath)')" />
-    <Message Text="Copied Rime schemas to shared: $(RimeSharedDir)" Importance="high" />
-    <Message Text="Copied OpenCC data to: $(OpenCCDir)" Importance="high" />
-    <Message Text="Copied Native FLAC decoder (x64)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <!-- <Message Text="Copied Native FLAC decoder (x86)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
-    <Message Text="Copied Native SMTC bridge (x64)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll')" />
-    <Message Text="Copied license files to: $(PluginDir)licenses" Importance="high" />
-    <Message Text="User data directory: $(RimeUserDir)" Importance="high" />
-    <Warning Text="rime.dll not found at $(RimeDllPath)" Condition="!Exists('$(RimeDllPath)')" />
-    <Warning Text="Native FLAC decoder (x64) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')" />
-    <Warning Text="Native SMTC bridge (x64) not found - System media transport controls will be disabled" Condition="!Exists('$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll')" />
-    <!-- <Warning Text="Native FLAC decoder (x86) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
-  </Target>
+
+    <PropertyGroup>
+        <GamePath>$(GamePath)</GamePath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- BepInEx and Harmony from local references -->
+        <Reference Include="0Harmony">
+            <HintPath>$(GamePath)BepInEx\core\0Harmony.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="BepInEx">
+            <HintPath>$(GamePath)BepInEx\core\BepInEx.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Unity Engine -->
+        <Reference Include="UnityEngine">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UI">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.UI.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UIModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.AudioModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="Unity.TextMeshPro" Publicize="true">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.InputLegacyModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.ImageConversionModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.TextRenderingModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UnityWebRequestModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.JSONSerializeModule">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\Newtonsoft.Json.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+
+        
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Game DLLs -->
+        <Reference Include="Assembly-CSharp" Publicize="true">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\Assembly-CSharp.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="com.rlabrecque.steamworks.net">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <!-- UI Framework Dependencies -->
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\Newtonsoft.Json.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UniTask">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\UniTask.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="ObservableCollections">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\ObservableCollections.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="ObservableCollections.R3">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\ObservableCollections.R3.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="R3">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\R3.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="R3.Unity">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\R3.Unity.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="DOTween">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\DOTween.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="VContainer">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\VContainer.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="FastEnum">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\FastEnum.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="AudioManager">
+            <HintPath>$(GamePath)Chill With You_Data\Managed\AudioManager.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+    </ItemGroup>
+
+    <Target Name="CopyToPlugins" AfterTargets="Build">
+        <PropertyGroup>
+            <PluginDir>$(GamePath)BepInEx\plugins\ChillPatcher\</PluginDir>
+            <NativePluginDir>$(PluginDir)native\</NativePluginDir>
+            <RimeDllPath>$(ProjectDir)librime\build\bin\Release\rime.dll</RimeDllPath>
+            <RimeDataDir>$(PluginDir)rime-data\</RimeDataDir>
+            <RimeSharedDir>$(RimeDataDir)shared\</RimeSharedDir>
+            <RimeUserDir>$(RimeDataDir)user\</RimeUserDir>
+            <OpenCCDir>$(RimeSharedDir)opencc\</OpenCCDir>
+        </PropertyGroup>
+
+
+        <MakeDir Directories="$(PluginDir)"/>
+        <MakeDir Directories="$(RimeSharedDir)"/>
+        <MakeDir Directories="$(RimeUserDir)"/>
+        <MakeDir Directories="$(OpenCCDir)"/>
+        <MakeDir Directories="$(NativePluginDir)x64\"/>
+        <!-- <MakeDir Directories="$(NativePluginDir)x86\" /> -->
+
+        <!-- Copy main DLL -->
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)"/>
+
+        <!-- Copy TagLibSharp.dll -->
+        <ItemGroup>
+            <TagLibFiles Include="$(OutputPath)TagLibSharp.dll"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(TagLibFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)TagLibSharp.dll')"/>
+
+        <!-- Copy System.Data.SQLite DLLs (从构建输出目录) -->
+        <ItemGroup>
+            <SQLiteFiles Include="$(OutputPath)System.Data.SQLite.dll"/>
+            <SQLiteNativeX64 Include="$(OutputPath)x64\SQLite.Interop.dll"/>
+            <!-- <SQLiteNativeX86 Include="$(OutputPath)x86\SQLite.Interop.dll" /> -->
+        </ItemGroup>
+
+        <ItemGroup>
+            <Nancy Include="$(OutputPath)Nancy.dll"/>
+            <NancyHost Include="$(OutputPath)Nancy.Hosting.Self.dll"/>
+        </ItemGroup>
+
+        <ItemGroup>
+            <Refit Include="$(OutputPath)Refit.dll"/>
+            <RefitHttpClientFactory Include="$(OutputPath)Refit.HttpClientFactory.dll"/>
+        </ItemGroup>
+
+        <Copy SourceFiles="@(SQLiteFiles)" DestinationFolder="$(PluginDir)" Condition="Exists('$(OutputPath)System.Data.SQLite.dll')"/>
+        <Copy SourceFiles="@(SQLiteNativeX64)" DestinationFiles="$(NativePluginDir)x64\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x64\SQLite.Interop.dll')"/>
+        <!-- <Copy SourceFiles="@(SQLiteNativeX86)" DestinationFiles="$(NativePluginDir)x86\SQLite.Interop.dll" Condition="Exists('$(OutputPath)x86\SQLite.Interop.dll')" />     -->
+
+        <Copy SourceFiles="@(Nancy)"
+              DestinationFolder="$(NativePluginDir)x64\"
+              Condition="Exists('$(OutputPath)Nancy.dll')"
+              SkipUnchangedFiles="true"/>
+
+        <Copy SourceFiles="@(NancyHost)"
+              DestinationFolder="$(NativePluginDir)x64\"
+              Condition="Exists('$(OutputPath)Nancy.Hosting.Self.dll')"
+              SkipUnchangedFiles="true"/>
+
+        <Copy SourceFiles="@(Refit)"
+              DestinationFolder="$(NativePluginDir)x64\"
+              Condition="Exists('$(OutputPath)Refit.dll')"
+              SkipUnchangedFiles="true"/>
+
+        <Copy SourceFiles="@(RefitHttpClientFactory)"
+              DestinationFolder="$(NativePluginDir)x64\"
+              Condition="Exists('$(OutputPath)Refit.HttpClientFactory.dll')"
+              SkipUnchangedFiles="true"/>
+
+        <!-- Copy rime.dll -->
+        <Copy SourceFiles="$(RimeDllPath)" DestinationFolder="$(PluginDir)" Condition="Exists('$(RimeDllPath)')"/>
+
+        <!-- Copy prelude (基础配置文件,不包括default.yaml) -->
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\symbols.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\punctuation.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\prelude\key_bindings.yaml" DestinationFolder="$(RimeSharedDir)"/>
+
+        <!-- Copy custom default.yaml to shared/ (使用我们的配置) -->
+        <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\default.yaml" DestinationFolder="$(RimeSharedDir)"/>
+
+        <!-- Copy luna_pinyin.custom.yaml to shared/ (繁简转换配置) -->
+        <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\luna_pinyin.custom.yaml" DestinationFolder="$(RimeSharedDir)" Condition="Exists('$(ProjectDir)RimeDefaultConfig\luna_pinyin.custom.yaml')"/>
+
+        <!-- Copy essay (语言模型) -->
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\essay\essay.txt" DestinationFolder="$(RimeSharedDir)"/>
+
+        <ItemGroup>
+            <SmtcBridgeX64 Include="$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(SmtcBridgeX64)" DestinationFolder="$(NativePluginDir)x64" Condition="Exists('$(ProjectDir)bin\native\x64\ChillSmtcBridge.dll')"/>
+
+        <!-- Copy custom default.yaml to user/ (覆盖配置) - 移除,不需要重复 -->
+        <!-- <Copy SourceFiles="$(ProjectDir)RimeDefaultConfig\default.yaml" DestinationFiles="$(RimeUserDir)default.custom.yaml" /> -->
+
+        <!-- Copy luna_pinyin schemas + dependencies -->
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\luna_pinyin.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\luna_pinyin.dict.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\luna-pinyin\pinyin.yaml" DestinationFolder="$(RimeSharedDir)"/>
+
+        <!-- Copy stroke dependency -->
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\stroke\stroke.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\stroke\stroke.dict.yaml" DestinationFolder="$(RimeSharedDir)"/>
+
+        <!-- Copy double_pinyin schemas -->
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_abc.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_flypy.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+        <Copy SourceFiles="$(ProjectDir)rime-schemas\double-pinyin\double_pinyin_mspy.schema.yaml" DestinationFolder="$(RimeSharedDir)"/>
+
+        <!-- Copy OpenCC data files (繁简转换必需) -->
+        <ItemGroup>
+            <OpenCCFiles Include="$(ProjectDir)librime\share\opencc\*.json"/>
+            <OpenCCFiles Include="$(ProjectDir)librime\share\opencc\*.ocd2"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(OpenCCFiles)" DestinationFolder="$(OpenCCDir)"/>
+
+        <!-- Copy Native FLAC Decoder DLLs -->
+        <PropertyGroup>
+            <NativePluginDir>$(PluginDir)native\</NativePluginDir>
+        </PropertyGroup>
+        <MakeDir Directories="$(NativePluginDir)x64" Condition="!Exists('$(NativePluginDir)x64')"/>
+        <!-- <MakeDir Directories="$(NativePluginDir)x86" Condition="!Exists('$(NativePluginDir)x86')" /> -->
+
+        <ItemGroup>
+            <FlacDecoderX64 Include="$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll"/>
+            <!-- <FlacDecoderX86 Include="$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll" /> -->
+        </ItemGroup>
+
+        <Copy SourceFiles="@(FlacDecoderX64)" DestinationFolder="$(NativePluginDir)x64" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')"/>
+        <!-- <Copy SourceFiles="@(FlacDecoderX86)" DestinationFolder="$(NativePluginDir)x86" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
+        <ItemGroup>
+            <VCRuntimeFiles Include="$(ProjectDir)lib\*.dll"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(VCRuntimeFiles)" DestinationFolder="$(NativePluginDir)x64"/>
+
+        <!-- 复制所有运行时依赖 -->
+        <ItemGroup>
+            <RuntimeDependencies Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(TargetFileName)"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(RuntimeDependencies)" DestinationFolder="$(PluginDir)"/>
+
+        <Message Text="Deployed to: $(PluginDir)" Importance="high"/>
+        <Message Text="Copied rime.dll" Importance="high" Condition="Exists('$(RimeDllPath)')"/>
+        <Message Text="Copied Rime schemas to shared: $(RimeSharedDir)" Importance="high"/>
+        <Message Text="Copied OpenCC data to: $(OpenCCDir)" Importance="high"/>
+        <Message Text="Copied Native FLAC decoder (x64)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')"/>
+        <!-- <Message Text="Copied Native FLAC decoder (x86)" Importance="high" Condition="Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
+        <Message Text="User data directory: $(RimeUserDir)" Importance="high"/>
+        <Warning Text="rime.dll not found at $(RimeDllPath)" Condition="!Exists('$(RimeDllPath)')"/>
+        <Warning Text="Native FLAC decoder (x64) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x64\ChillFlacDecoder.dll')"/>
+        <!-- <Warning Text="Native FLAC decoder (x86) not found - FLAC decoding will fall back to Unity" Condition="!Exists('$(ProjectDir)bin\native\x86\ChillFlacDecoder.dll')" /> -->
+    </Target>
 
 </Project>

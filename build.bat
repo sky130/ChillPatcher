@@ -26,7 +26,7 @@ echo.
 echo === Build Complete ===
 echo.
 echo Auto-deployed to:
-echo   F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\plugins\ChillPatcher\
+echo   C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\plugins\ChillPatcher\
 echo.
 echo Files:
 echo   - ChillPatcher.dll
